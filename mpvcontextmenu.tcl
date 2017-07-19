@@ -1,53 +1,182 @@
 # #############################################################
-# Context menu constructed via CLI args. Mostly proof of concept.
-# Avi Halachmi (:avih) https://github.com/avih
+# Context menu constructed via CLI args.
+# Originally by Avi Halachmi (:avih) https://github.com/avih
+# Extended by Thomas Carmichael (carmanught) https://github.com/carmanaught
 #
-# Developed for and used in conjunction with context.lua - context-menu for mpv.
-# See context.lua for more info.
+# Developed for and used in conjunction with mpvcontextmenu.lua - context-menu for mpv.
+# See mpvcontextmenu.lua for more info.
 #
-# 2017-02-02 - Version 0.1 - initial version
+# 2017-02-02 - Version 0.1 - Initial version (avih)
+# 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
 # #############################################################
 
 # Required when launching via tclsh, no-op when launching via wish
-package require Tk  
+package require Tk
+package require Ttk
+font create defFont -family {Source Code Pro} -size 9
+option add *font defFont
+ttk::style theme use clam
 
 # Remove the main window from the host window manager
 wm withdraw .
 
-if { $::argc < 4 } {
-    puts "Usage: context.tcl x y item1 rv1 [item2 rv2 ...]"
+# I'll leave this code here until I know the argList works properly
+#set argFile [open [lindex $argv 0]]
+#set argList [split [read $argFile] "|"]
+#close $argFile; # Saves a few bytes :-)
+
+set argList [split [lindex $argv 0] "|"]
+
+if { $::argc < 1 } {
+    puts "Usage: context.tcl menufile"
     exit 1
 }
 
-# construct the menu from argv:
-# - First pair is absolute x, y menu position, or under the mouse if -1, -1
+# Construct the menu from argv:
+# - The first set of values contains the absolute x, y menu position, or
+# - under the mouse if -1, -1, as well as the base menu name.
 # - The rest of the pairs are display-string, return-value-on-click.
 #   If the return value is empty then the display item is disabled, but if the
 #   display is "-" (and empty rv) then a separator is added instead of an item.
 # - For now, return-value is expected to be a number, and -1 is reserved for cancel.
 #
 # On item-click/menu-dismissed, we print a json object to stdout with the
-# keys x, y (menu absolute position) and rv (return value) - all numbers.
-set RV_CANCEL -1
-set m [menu .popupMenu -tearoff 0]
+# menu name and and index.
+set RESP_CANCEL -1
+
+set boxCheck "\[X\] "
+set boxUncheck "\[ \] "
+set radioSelect "(x) "
+set radioEmpty "( ) "
+set boxA "\[A\] "
+set boxB "\[B\] "
+set emptyPre "    "
+set accelSpacer "   "
+set labelPre ""
+set menuWidth 36
+set baseMenuName "context_menu"
 set first 1
-foreach {disp rv} $::argv {
+
+# I haven't found a way to right-justify the accelerator so we'll just build the label
+# and shortcut together and add spaces between instead of using:
+# -accel $accelSpacer$itemAccel
+proc makeLabel {pre lbl acl} {
+    set spacesCount [expr $::menuWidth - [string length $pre] - [string length $lbl] - [string length $acl]]
+    set whiteSpace [string repeat " " $spacesCount]
+    set fullLabel $pre$lbl$whiteSpace$acl
+    return $fullLabel
+}
+
+foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable} $argList {
     if {$first} {
-        set pos_x $disp
-        set pos_y $rv
+        set pos_x $tableName
+        set pos_y $tableIndex
+        set baseMenuName $itemType
+        set baseMenu [menu .$baseMenuName -tearoff 0]
+        set curMenu .$itemType
+        set preMenu .$itemType
         set first 0
         continue
     }
-
-    if {$rv == ""} {
-        if {$disp == "-"} {
-            $m add separator
-        } else {
-            $m add command -state disabled -label "$disp"
-        }
+    
+    if {$itemDisable == "false"} {
+        set itemDisable "normal"
+    } elseif {$itemDisable == "true"} {
+        set itemDisable "disabled"
     } else {
-        $m add command -label "$disp" -command "done $rv"
+        set itemDisable "normal"
     }
+    
+    if {$itemType == "changemenu"} {
+        if {$itemAccel == ""} {
+            # Need to understand how menus work to fix window name $menuname already exists
+            if {![winfo exists .$itemLabel]} {
+                menu .$itemLabel -tearoff 0
+            }
+            set curMenu .$itemLabel
+            set preMenu .$itemLabel
+        } else {
+            if {$itemState == ""} {
+                if {![winfo exists .$itemLabel]} { 
+                    menu .$itemLabel -tearoff 0
+                }
+                if {![winfo exists .$itemLabel.$itemAccel]} {
+                    menu .$itemLabel.$itemAccel -tearoff 0
+                }
+                set curMenu .$itemLabel.$itemAccel
+                set preMenu .$itemLabel
+            } else {
+                if {![winfo exists .$itemLabel]} {
+                    menu .$itemLabel -tearoff 0
+                }
+                if {![winfo exists .$itemLabel.$itemAccel]} {
+                    menu .$itemLabel.$itemAccel -tearoff 0
+                }
+                if {![winfo exists .$itemLabel.$itemAccel.$itemState]} {
+                    menu .$itemLabel.$itemAccel.$itemState -tearoff 0
+                }
+                set curMenu .$itemLabel.$itemAccel.$itemState
+                set preMenu .$itemLabel.$itemAccel
+            }
+        }
+        continue
+    }
+
+    if {$tableName == "cascade"} {
+        # Reverse the $curMenu and $preMenu here so that the menu so that it attaches in the
+        # correct order.
+        $preMenu add cascade -label $emptyPre$tableIndex -state $itemDisable -menu $curMenu
+        continue
+    }
+    
+    if {$itemType == "separator"} {
+        $curMenu add separator
+        continue
+    }
+    
+    if {$itemType == "command"} {
+        $curMenu add command -label [makeLabel $emptyPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        continue
+    }
+    
+    # For checkbutton/radiobutton I'll just add command items for now, until I can get the
+    # theming to work right and show the buttons based on a specified theme.
+    
+    if {$itemType == "checkbutton"} {
+        if {$itemState == "true"} {
+            set labelPre $boxCheck
+        } else {
+            set labelPre $boxUncheck
+        }
+        
+        $curMenu add command -label [makeLabel $labelPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        continue
+    }
+    
+    if {$itemType == "radiobutton"} {
+        if {$itemState == "true"} {
+            set labelPre $radioSelect
+        } else {
+            set labelPre $radioEmpty
+        }
+        
+        $curMenu add command -label [makeLabel $labelPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        continue
+    }
+    
+    if {$itemType == "ab-button"} {
+        if {$itemState == "a"} {
+            set labelPre $boxA
+        } elseif {$itemState == "b"} {
+            set labelPre $boxB
+        } elseif {$itemState == "off"} {
+            set labelPre $boxUncheck
+        }
+        
+        $curMenu add command -label [makeLabel $labelPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        continue
+    }
+    
 }
 
 # Read the absolute mouse pointer position if we're not given a pos via argv
@@ -56,8 +185,8 @@ if {$pos_x == -1 && $pos_y == -1} {
     set pos_y [winfo pointery .]
 }
 
-proc done {rv} {
-    puts -nonewline "{\"x\":\"$::pos_x\", \"y\":\"$::pos_y\", \"rv\":\"$rv\"}"
+proc done {menuName index} {
+    puts -nonewline "{\"menuname\":\"$menuName\", \"index\":\"$index\"}"
     exit
 }
 
@@ -65,7 +194,7 @@ proc done {rv} {
 # before the menu command is executed and _a_sync to it. Therefore we wait a bit to
 # allow the menu command to execute first (and exit), and if it didn't, we exit here.
 proc cancelled {} {
-    after 100 {done $::RV_CANCEL}
+    after 100 {done $baseMenuName $::RESP_CANCEL}
 }
 
 # Calculate the menu position relative to the Tk window
@@ -73,7 +202,7 @@ set win_x [expr {$pos_x - [winfo rootx .]}]
 set win_y [expr {$pos_y - [winfo rooty .]}]
 
 # Launch the popup menu
-tk_popup .popupMenu $win_x $win_y
+tk_popup $baseMenu $win_x $win_y
 
 # On Windows tk_popup is synchronous and so we exit when it closes, but on Linux
 # it's async and so we need to bind to the <Unmap> event (<Destroyed> or
@@ -85,5 +214,5 @@ tk_popup .popupMenu $win_x $win_y
 if {$tcl_platform(platform) == "windows"} {
     cancelled
 } else {
-    bind .popupMenu <Unmap> cancelled
+    bind $baseMenu <Unmap> cancelled
 }
