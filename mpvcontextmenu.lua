@@ -200,7 +200,7 @@ local function audTrackMenu()
             local audTrackTitle = propNative("track-list/" .. audTrackNum .. "/title")
             local audTrackLang = propNative("track-list/" .. audTrackNum .. "/lang")
             -- Convert ISO 639-1/2 codes
-            local audTrackLang = getLang(audTrackLang) and getLang(audTrackLang) or audTrackLang
+            if not (audTrackLang == nil) then audTrackLang = getLang(audTrackLang) and getLang(audTrackLang) or audTrackLang end
             
 
             if (audTrackTitle) then audTrackTitle = audTrackTitle .. " (" .. audTrackLang .. ")"
@@ -208,8 +208,14 @@ local function audTrackMenu()
             else audTrackTitle = "Audio Track " .. i end
             
             local audTrackCommand = "set aid " .. audTrackID
-            if (i == 1) then table.insert(audTrackMenuVal, {Sep}) end
+            if (i == 1) then
+                table.insert(audTrackMenuVal, {Command, "Select None", "", "set aid 0", "", false})
+                table.insert(audTrackMenuVal, {Sep})
+            end
             table.insert(audTrackMenuVal, {Radio, audTrackTitle, "", audTrackCommand, function() return checkTrack(audTrackNum) end, false})
+            if (i == #audTrackCount) then
+            
+            end
         end
     end
     
@@ -232,7 +238,7 @@ local function subTrackMenu()
         {Sep},
         {Command, "Select Next", "Shift+N", "cycle sub", "", false},
         {Command, "Select Previous", "Ctrl+Shift+N", "cycle sub down", "", false},
-        {Check, function() return subVisLabel() end, "V", "cycle sub-visibility", function() return propNative("sub-visibility") end, false},
+        {Check, function() return subVisLabel() end, "V", "cycle sub-visibility", function() return not propNative("sub-visibility") end, false},
     }
     if not (#subTrackCount == 0) then
         for i = 1, (#subTrackCount), 1 do
@@ -241,14 +247,17 @@ local function subTrackMenu()
             local subTrackTitle = propNative("track-list/" .. subTrackNum .. "/title")
             local subTrackLang = propNative("track-list/" .. subTrackNum .. "/lang")
             -- Convert ISO 639-1/2 codes
-            local subTrackLang = getLang(subTrackLang) and getLang(subTrackLang) or subTrackLang
+            if not (subTrackLang == nil) then subTrackLang = getLang(subTrackLang) and getLang(subTrackLang) or subTrackLang end
             
             if (subTrackTitle) then subTrackTitle = subTrackTitle .. " (" .. subTrackLang .. ")"
             elseif (subTrackLang) then subTrackTitle = subTrackLang
             else subTrackTitle = "Subtitle Track " .. i end
             
             local subTrackCommand = "set sid " .. subTrackID
-            if (i == 1) then table.insert(subTrackMenuVal, {Sep}) end
+            if (i == 1) then
+                table.insert(subTrackMenuVal, {Command, "Select None", "", "set sid 0", "", false})
+                table.insert(subTrackMenuVal, {Sep})
+            end
             table.insert(subTrackMenuVal, {Radio, subTrackTitle, "", subTrackCommand, function() return checkTrack(subTrackNum) end, false})
         end
     end
