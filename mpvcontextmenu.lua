@@ -26,6 +26,7 @@
  *
  * 2017-02-02 - Version 0.1 - Initial version (avih)
  * 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
+ * 2017-07-20 - Version 0.3 - Add/remove/update menus and include zenity bindings (carmanught)
  * 
  ***************************************************************
 --]]
@@ -187,9 +188,9 @@ local function audTrackMenu()
     local audTrackMenuVal, audTrackCount = {}, trackCount("audio")
     
     audTrackMenuVal = {
-         {Command, "Open File", "", "", "", true},
-         {Command, "Auto-load File", "", "", "", true},
-         {Command, "Reload File", "", "", "", true},
+         {Command, "Open File", "", "script-binding add_audio_zenity", "", false},
+         {Command, "Reload File", "", "audio-reload", "", false},
+         {Command, "Remove", "", "audio-remove", "", false},
          {Sep},
          {Command, "Select Next", "Ctrl+A", "cycle audio", "", false},
     }
@@ -213,9 +214,6 @@ local function audTrackMenu()
                 table.insert(audTrackMenuVal, {Sep})
             end
             table.insert(audTrackMenuVal, {Radio, audTrackTitle, "", audTrackCommand, function() return checkTrack(audTrackNum) end, false})
-            if (i == #audTrackCount) then
-            
-            end
         end
     end
     
@@ -231,10 +229,9 @@ local function subTrackMenu()
     local subTrackMenuVal, subTrackCount = {}, trackCount("sub")
     
     subTrackMenuVal = {
-        {Command, "Open File", "(Shift+F)", "", "", true},
-        {Command, "Auto-load File", "", "", "", true},
-        {Command, "Reload File", "(Shift+R)", "", "", true},
-        {Command, "Clear File", "", "", "", true},
+        {Command, "Open File", "(Shift+F)", "script-binding add_subtitle_zenity", "", false},
+        {Command, "Reload File", "", "sub-reload", "", false},
+        {Command, "Clear File", "", "sub-remove", "", false},
         {Sep},
         {Command, "Select Next", "Shift+N", "cycle sub", "", false},
         {Command, "Select Previous", "Ctrl+Shift+N", "cycle sub down", "", false},
@@ -276,7 +273,7 @@ local function stateABLoop()
     return abLoopState
 end
 
--- Aspect Ratio radio item check and labeling
+-- Aspect Ratio radio item check
 local function stateRatio(ratioVal)
     -- Ratios and Decimal equivalents
     -- Ratios:    "4:3" "16:10"  "16:9" "1.85:1" "2.35:1"
@@ -294,14 +291,14 @@ local function stateRatio(ratioVal)
     return ratioState
 end
 
--- Video Rotate radio item check and labeling
+-- Video Rotate radio item check
 local function stateRotate(rotateVal)
     local rotateState, rotateCur = false, propNative("video-rotate")
     if (rotateVal == rotateCur) then rotateState = true end
     return rotateState
 end
 
--- Video Alignment radio item checks and labeling
+-- Video Alignment radio item checks
 local function stateAlign(alignAxis, alignPos)
     local alignState = false
     local alignValY, alignValX = propNative("video-align-y"), propNative("video-align-x")
@@ -316,28 +313,77 @@ local function stateAlign(alignAxis, alignPos)
     return alignState
 end
 
--- Deinterlacing radio item check and labeling
+-- Deinterlacing radio item check
 local function stateDeInt(deIntVal)
     local deIntState, deIntCur = false, propNative("deinterlace")
     if (deIntVal == deIntCur) then deIntState = true end
     return deIntState
 end
 
+local function stateFlip(flipVal)
+    local vfState, vfVals = false, propNative("vf")
+    for i, vf in pairs(vfVals) do
+        if (vf["name"] == flipVal) then vfState = true end
+    end
+    return vfState
+end
+
 -- Mute label
 local function muteLabel() return propNative("mute") and "Un-mute" or "Mute" end
 
--- Subtitle Alignment radio item check and labeling
+local function stateAudChannel(audVal)
+    local audState, audLayout = false, propNative("audio-channels")
+    -- Audio channel layout radio item check
+    -- Based on "mpv --audio-channels=help", reordered/renamed in part as per Bomi, intended
+    -- to be accessed via (audio_channels(layout) = propNative(audio-channels)) and true or false
+    local audio_channels = { ["auto"] = "auto", ["auto-safe"] = "auto-safe",  ["empty"] = "empty", ["mono"] = "mono", ["stereo"] = "stereo", ["2.1"] = "2.1", ["3.0"] = "3.0", ["3.0(back)"] = "3.0(back)", ["3.1"] = "3.1", ["3.1(back)"] = "3.1(back)", ["quad"] = "quad", ["quad(side)"] = "quad(side)", ["4.0"] = "4.0", ["4.1(alsa)"] = "4.1(alsa)", ["4.1"] = "4.1", ["5.0(alsa)"] = "5.0(alsa)", ["5.0"] = "5.0", ["5.0(side)"] = "5.0(side)", ["5.1(alsa)"] = "5.1(alsa)", ["5.1"] = "5.1", ["5.1(side)"] = "5.1(side)", ["6.0"] = "6.0", ["6.0(front)"] = "6.0(front)", ["hexagonal"] = "hexagonal", ["6.1"] = "6.1", ["6.1(top)"] = "6.1(top)", ["6.1(back)"] = "6.1(back)", ["6.1(front)"] = "6.1(front)", ["7.0(front)"] = "7.0(front)", ["7.0(rear)"] = "7.0(rear)", ["7.0(front)"] = "7.0(front)", ["7.1(alsa)"] = "7.1(alsa)", ["7.1"] = "7.1", ["7.1(wide)"] = "7.1(wide)", ["7.1(wide-side)"] = "7.1(wide-side)", ["7.1(rear)"] = "7.1(rear)", ["octagonal"] = "octagonal" }
+    
+    audState = (audio_channels[audVal] == audLayout) and true or false
+    return audState
+end
+
+-- Subtitle Alignment radio item check
 local function stateSubAlign(subAlignVal)
     local subAlignState, subAlignCur = false, propNative("sub-align-y")
-    if (subAlignVal == subAlignCur) then subAlignState = true end
+    subAlignState = (subAlignVal == subAlignCur) and true or false
     return subAlignState
 end
 
--- Subtitle Position radio item check and labeling
+-- Subtitle Position radio item check
 local function stateSubPos(subPosVal)
     local subPosState, subPosCur = false, propNative("image-subs-video-resolution")
-    if (subPosVal == subPosCur) then subPosState = true end
+    subPosState = (subPosVal == subPosCur) and true or false
     return subPosState
+end
+
+local function movePlaylist(direction)
+    local playlistPos, newPos = propNative("playlist-pos"), 0
+    -- We'll remove 1 here to "0 index" the value since we're using it with playlist-pos
+    local playlistCount = propNative("playlist-count") - 1
+    
+    if (direction == "up") then
+        newPos = playlistPos - 1
+        if not (playlistPos == 0) then
+            mp.commandv("plalist-move", playlistPos, newPos)
+        else mp.osd_message("Can't move item up any further") end
+    elseif (direction == "down") then
+        if not (playlistPos == playlistCount) then
+            newPos = playlistPos + 2
+            mp.commandv("plalist-move", playlistPos, newPos)
+        else mp.osd_message("Can't move item up any further") end
+    end
+end
+
+local function stateLoop()
+    local loopState, loopVal = false, propNative("loop-playlist")
+    if not (tostring(loopVal) == "false") then loopState = true end
+    return loopState
+end
+
+local function stateOnTop(onTopVal)
+    local onTopState, onTopCur = false, propNative("ontop")
+    onTopState = (onTopVal == onTopCur) and true or false
+    return onTopState
 end
 
 --[[ ************ CONFIG: start ************ ]]--
@@ -367,13 +413,9 @@ local context_menu = {}
 mp.register_event("file-loaded", function()
     context_menu = {
         open_menu = {
-            -- Some of these to be changed when I've developed some Zenity stuff
-            {Command, "File", "Ctrl+F", "script-binding navigator", "", false},
-            {Command, "Folder", "(Unbound)", "", "", true},
-            {Command, "URL", "", "", "", true},
-            {Command, "DVD", "", "", "", true},
-            {Command, "Bluray", "", "", "", true},
-            {Command, "From Clipboard", "(Unbound)", "", "", true},
+            {Command, "File", "Ctrl+F", "script-binding add_files_zenity", "", false},
+            {Command, "Folder", "Ctrl+G", "script-binding add_folder_zenity", "", false},
+            {Command, "URL", "", "script-binding open_url_zenity", "", false},
             {Sep},
             {Command, "Recent", "", "", "", true}, -- No menu yet
         },
@@ -387,14 +429,11 @@ mp.register_event("file-loaded", function()
         
         abrepeat_menu = {
             {AB, "Set/Clear A-B Loop", "R", "ab-loop", function() return stateABLoop() end, false},
-            {Check, "Toggle Infinite Loop", "Shift+R", "cycle-values loop-file \"inf\" \"no\"", propNative("loop-file"), false},
-            -- I'll look at this later with Zenity stuff
-            {Command, "Set Loop Points...", "", "", "", true},
+            {Check, "Toggle Infinite Loop", "", "cycle-values loop-file \"inf\" \"no\"", propNative("loop-file"), false},
         },
         
         seek_menu = {
             {Command, "Beginning", "Ctrl+Home", "no-osd seek 0 absolute", "", false},
-            {Command, "Previous Playback", "", "", "", true},
             {Sep},
             {Command, "+5 Sec", "Right", "no-osd seek 5", "", false},
             {Command, "-5 Sec", "Left", "no-osd seek -5", "", false},
@@ -430,9 +469,6 @@ mp.register_event("file-loaded", function()
             {Cascade, "Seek", "seek_menu", "", "", false},
             {Cascade, "Title/Edition", "edition_menu", "", "", function() return enableEdition() end},
             {Cascade, "Chapter", "chapter_menu", "", "", function() return enableChapter() end},
-            {Sep},
-            {Command, "Streaming Format", "", "", "", true}, -- No menu yet
-            {Command, "Show State", "", "", "", true}, -- No menu yet
         },
         
         -- Use function to return list of Video Tracks
@@ -442,14 +478,12 @@ mp.register_event("file-loaded", function()
             {Command, "Screenshot", "Ctrl+S", "async screenshot", "", false},
             {Command, "Screenshot (No Subs)", "Alt+S", "async screenshot video", "", false},
             {Command, "Screenshot (Subs/OSD/Scaled)", "", "async screenshot window", "", false},
-            {Command, "Screenshot Tool", "", "", "", true},
         },
         
        aspect_menu = {
             {Command, "Reset", "Ctrl+Shift+R", "no-osd set video-aspect \"-1\" ; no-osd set video-aspect \"-1\" ; show-text \"Video Aspect Ratio - Reset\"", "", false},
             {Command, "Select Next", "", "cycle-values video-aspect \"4:3\" \"16:10\" \"16:9\" \"1.85:1\" \"2.35:1\" \"-1\" \"-1\"", "", false},
             {Sep},
-            {Command, "Same as Window", "", "", "", true},
             {Radio, "4:3 (TV)", "", "set video-aspect \"4:3\"", function() return stateRatio("4:3") end, false},
             {Radio, "16:10 (Wide Monitor)", "", "set video-aspect \"16:10\"", function() return stateRatio("16:10") end, false},
             {Radio, "16:9 (HDTV)", "", "set video-aspect \"16:9\"", function() return stateRatio("16:9") end, false},
@@ -490,25 +524,29 @@ mp.register_event("file-loaded", function()
         screenalign_menu = {
             -- Y Values: -1 = Top, 0 = Vertical Center, 1 = Bottom
             -- X Values: -1 = Left, 0 = Horizontal Center, 1 = Right
-            {Radio, "Top", "", "set video-align-y -1", function() return stateAlign("y",-1) end, false},
-            {Radio, "Vertical Center", "", "set video-align-y 0", function() return stateAlign("y",0) end, false},
-            {Radio, "Bottom", "", "set video-align-y 1", function() return stateAlign("y",1) end, false},
+            {Radio, "Top", "", "no-osd set video-align-y -1", function() return stateAlign("y",-1) end, false},
+            {Radio, "Vertical Center", "", "no-osd set video-align-y 0", function() return stateAlign("y",0) end, false},
+            {Radio, "Bottom", "", "no-osd set video-align-y 1", function() return stateAlign("y",1) end, false},
             {Sep},
-            {Radio, "Left", "", "set video-align-x -1", function() return stateAlign("x",-1) end, false},
-            {Radio, "Horizontal Center", "", "set video-align-x 0", function() return stateAlign("x",0) end, false},
-            {Radio, "Right", "", "set video-align-x 1", function() return stateAlign("x",1) end, false},
+            {Radio, "Left", "", "no-osd set video-align-x -1", function() return stateAlign("x",-1) end, false},
+            {Radio, "Horizontal Center", "", "no-osd set video-align-x 0", function() return stateAlign("x",0) end, false},
+            {Radio, "Right", "", "no-osd set video-align-x 1", function() return stateAlign("x",1) end, false},
         },
         
         deint_menu = {
             {Command, "Toggle", "Ctrl+D", "cycle deinterlace", "", false},
             {Command, "Auto", "", "set deinterlace \"auto\"", "", false},
             {Sep},
-            {Radio, "Off", "", "set deinterlace \"no\"", function() return stateDeInt(false) end, false},
-            {Radio, "On", "", "set deinterlace \"yes\"", function() return stateDeInt(true) end, false},
+            {Radio, "Off", "", "no-osd set deinterlace \"no\"", function() return stateDeInt(false) end, false},
+            {Radio, "On", "", "no-osd set deinterlace \"yes\"", function() return stateDeInt(true) end, false},
+        },
+        
+        filter_menu = {
+            {Check, "Flip Vertically", "", "no-osd vf toggle vflip", function() return stateFlip("vflip") end, false},
+            {Check, "Flip Horizontally", "", "no-osd vf toggle hflip", function() return stateFlip("hflip") end, false}
         },
         
         color_menu = {
-            {Command, "Color Editor", "", "", "", true},
             {Command, "Reset", "O", "no-osd set brightness 0 ; no-osd set contrast 0 ; no-osd set hue 0 ; no-osd set saturation 0 ; show-text \"Colors - Reset\"", "", false},
             {Sep},
             {Command, "Brightness +1%", "T", "add brightness 1", "", false},
@@ -519,41 +557,21 @@ mp.register_event("file-loaded", function()
             {Command, "Saturation -1%", "J", "add saturation -1", "", false},
             {Command, "Hue +1%", "I", "add hue 1", "", false},
             {Command, "Hue -1%", "K", "add hue -1", "", false},
-            {Command, "Red +1%", "", "", "", true},
-            {Command, "Red -1%", "", "", "", true},
-            {Command, "Green +1%", "", "", "", true},
-            {Command, "Green -1%", "", "", "", true},
-            {Command, "Blue +1%", "", "", "", true},
-            {Command, "Blue -1%", "", "", "", true},
         },
         
         video_menu = {
             {Cascade, "Track", "vidtrack_menu", "", "", function() return enableVidTrack() end},
             {Sep},
             {Cascade, "Take Screenshot", "screenshot_menu", "", "", false},
-            {Command, "Make Video Clip", "", "", "", true}, -- No menu yet
             {Sep},
             {Cascade, "Aspect Ratio", "aspect_menu", "", "", false},
-            {Command, "Crop", "", "", "", true}, -- No menu yet
-            {Cascade, "Zoom", "zoom_menu", "", "", true},
-            {Cascade, "Rotate", "rotate_menu", "", "", true},
+            {Cascade, "Zoom", "zoom_menu", "", "", false},
+            {Cascade, "Rotate", "rotate_menu", "", "", false},
             {Cascade, "Screen Position", "screenpos_menu", "", "", false},
             {Cascade, "Screen Alignment", "screenalign_menu", "", "", false},
             {Sep},
-            {Command, "Color Space", "", "", "", true}, -- No menu yet
-            {Command, "Color Range", "", "", "", true}, -- No menu yet
-            {Sep},
-            {Command, "Quality Preset", "", "", "", true}, -- No menu yet
-            {Command, "Texture Format", "", "", "", true}, -- No menu yet
-            {Command, "Chroma Upscaler", "", "", "", true}, -- No menu yet
-            {Command, "Interpolater", "", "", "", true}, -- No menu yet
-            {Command, "Interpolater (Downscale)", "", "", "", true}, -- No menu yet
-            {Command, "High Quality Scaling", "", "", "", true}, -- No menu yet
-            {Command, "Dithering", "", "", "", true}, -- No menu yet
-            {Sep},
-            {Command, "Motion Smoothing", "", "", "", true}, -- No menu yet
             {Cascade, "Deinterlacing", "deint_menu", "", "", false},
-            {Command, "Filter", "", "", "", true}, -- No menu yet
+            {Cascade, "Filter", "filter_menu", "", "", false},
             {Cascade, "Adjust Color", "color_menu", "", "", false},
         },
         -- Use function to return list of Audio Tracks
@@ -573,20 +591,53 @@ mp.register_event("file-loaded", function()
             {Command, "-2%", "Shift+Down", "add volume -2", "", false},
         },
         
+        channel_layout = {
+            {Radio, "Auto", "", "set audio-channels \"\"", function() return stateAudChannel("auto") end, false},
+            {Radio, "Auto (Safe)", "", "set audio-channels \"\"", function() return stateAudChannel("auto-safe") end, false},
+            {Sep},
+            {Radio, "Empty", "", "set audio-channels \"empty\"", function() return stateAudChannel("empty") end, false},
+            {Radio, "Mono", "", "set audio-channels \"mono\"", function() return stateAudChannel("mono") end, false},
+            {Radio, "Stereo", "", "set audio-channels \"stereo\"", function() return stateAudChannel("stereo") end, false},
+            {Radio, "2.1ch", "", "set audio-channels \"2.1\"", function() return stateAudChannel("2.1") end, false},
+            {Radio, "3.0ch", "", "set audio-channels \"3.0\"", function() return stateAudChannel("3.0") end, false},
+            {Radio, "3.0ch (Back)", "", "set audio-channels \"3.0(back)\"", function() return stateAudChannel("3.0(back)") end, false},
+            {Radio, "3.1ch", "", "set audio-channels \"3.1\"", function() return stateAudChannel("3.1") end, false},
+            {Radio, "3.1ch (Back)", "", "set audio-channels \"3.1(back)\"", function() return stateAudChannel("3.1(back)") end, false},
+            {Radio, "4.0ch", "", "set audio-channels \"quad\"", function() return stateAudChannel("quad") end, false},
+            {Radio, "4.0ch (Side)", "", "set audio-channels \"quad(side)\"", function() return stateAudChannel("quad(side)") end, false},
+            {Radio, "4.0ch (Diamond)", "", "set audio-channels \"4.0\"", function() return stateAudChannel("4.0") end, false},
+            {Radio, "4.1ch", "", "set audio-channels \"4.1(alsa)\"", function() return stateAudChannel("4.1(alsa)") end, false},
+            {Radio, "4.1ch (Diamond)", "", "set audio-channels \"4.1\"", function() return stateAudChannel("4.1") end, false},
+            {Radio, "5.0ch", "", "set audio-channels \"5.0(alsa)\"", function() return stateAudChannel("5.0(alsa)") end, false},
+            {Radio, "5.0ch (Alt.)", "", "set audio-channels \"5.0\"", function() return stateAudChannel("5.0") end, false},
+            {Radio, "5.0ch (Side)", "", "set audio-channels \"5.0(side)\"", function() return stateAudChannel("5.0(side)") end, false},
+            {Radio, "5.1ch", "", "set audio-channels \"5.1(alsa)\"", function() return stateAudChannel("5.1(alsa)") end, false},
+            {Radio, "5.1ch (Alt.)", "", "set audio-channels \"5.1\"", function() return stateAudChannel("5.1") end, false},
+            {Radio, "5.1ch (Side)", "", "set audio-channels \"5.1(side)\"", function() return stateAudChannel("5.1(side)") end, false},
+            {Radio, "6.0ch", "", "set audio-channels \"6.0\"", function() return stateAudChannel("6.0") end, false},
+            {Radio, "6.0ch (Front)", "", "set audio-channels \"6.0(front)\"", function() return stateAudChannel("6.0(front)") end, false},
+            {Radio, "6.0ch (Hexagonal)", "", "set audio-channels \"hexagonal\"", function() return stateAudChannel("hexagonal") end, false},
+            {Radio, "6.1ch", "", "set audio-channels \"6.1\"", function() return stateAudChannel("6.1") end, false},
+            {Radio, "6.1ch (Top)", "", "set audio-channels \"6.1(top)\"", function() return stateAudChannel("6.1(top)") end, false},
+            {Radio, "6.1ch (Back)", "", "set audio-channels \"6.1(back)\"", function() return stateAudChannel("6.1(back)") end, false},
+            {Radio, "6.1ch (Front)", "", "set audio-channels \"6.1(front)\"", function() return stateAudChannel("6.1(front)") end, false},
+            {Radio, "7.0ch", "", "set audio-channels \"7.0\"", function() return stateAudChannel("7.0") end, false},
+            {Radio, "7.0ch (Back)", "", "set audio-channels \"7.0(rear)\"", function() return stateAudChannel("7.0(rear)") end, false},
+            {Radio, "7.0ch (Front)", "", "set audio-channels \"7.0(front)\"", function() return stateAudChannel("7.0(front)") end, false},
+            {Radio, "7.1ch", "", "set audio-channels \"7.1(alsa)\"", function() return stateAudChannel("7.1(alsa)") end, false},
+            {Radio, "7.1ch (Alt.)", "", "set audio-channels \"7.1\"", function() return stateAudChannel("7.1") end, false},
+            {Radio, "7.1ch (Wide)", "", "set audio-channels \"7.1(wide)\"", function() return stateAudChannel("7.1(wide)") end, false},
+            {Radio, "7.1ch (Side)", "", "set audio-channels \"7.1(wide-side)\"", function() return stateAudChannel("7.1(wide-side)") end, false},
+            {Radio, "7.1ch (Back)", "", "set audio-channels \"7.1(rear)\"", function() return stateAudChannel("7.1(rear)") end, false},
+            {Radio, "8.0ch (Octagonal)", "", "set audio-channels \"octagonal\"", function() return stateAudChannel("octagonal") end, false},
+        },
+        
         audio_menu = {
             {Cascade, "Track", "audtrack_menu", "", "", false},
             {Cascade, "Sync", "audsync_menu", "", "", false},
             {Sep},
             {Cascade, "Volume", "volume_menu", "", "", false},
-            {Command, "Amp", "", "", "", true}, -- No menu yet
-            {Command, "Equalizer", "", "", "", true}, -- No menu yet
-            {Command, "Channel Layout", "", "", "", true}, -- No menu yet
-            {Sep},
-            {Command, "Visualization", "", "", "", true}, -- No menu yet
-            -- Need to figure out how to apply/remove filters to make the Normalizer toggle work
-            -- Need to add function here to check the status of normalization
-            {Check, "Normalizer", "N", "", false, true},
-            {Check, "Temp Scalar", "", "", false, true},
+            {Cascade, "Channel Layout", "channel_layout", "", "", false},
         },
         -- Use function to return list of Subtitle Tracks
         subtrack_menu = subTrackMenu(),
@@ -620,15 +671,11 @@ mp.register_event("file-loaded", function()
             {Sep},
             {Command, "+0.1 Sec", "D", "add sub-delay +0.1", "", false},
             {Command, "-0.1 Sec", "A", "add sub-delay -0.1", "", false},
-            {Sep},
-            {Command, "Bring Previous Lines", "", "", "", true},
-            {Command, "Bring Next Lines", "", "", "", true},
         },
         
         subtitle_menu = {
             {Cascade, "Track", "subtrack_menu", "", "", false},
             {Sep},
-            {Command, "Override ASS", "", "", "", true}, -- No menu yet
             {Cascade, "Alightment", "subalign_menu", "", "", false},
             {Cascade, "Position", "subpos_menu", "", "", false},
             {Cascade, "Scale", "subscale_menu", "", "", false},
@@ -639,76 +686,45 @@ mp.register_event("file-loaded", function()
         playlist_menu = {
             {Command, "Show", "l", "script-binding showplaylist", "", false},
             {Sep},
-            {Command, "Open", "", "", "", true},
+            {Command, "Open", "", "script-binding open_playlist_zenity", "", false},
             {Command, "Save", "", "script-binding saveplaylist", "", false},
             {Command, "Regenerate", "", "script-binding loadfiles", "", false},
-            {Command, "Clear", "Shift+L", "", "", true},
+            {Command, "Clear", "Shift+L", "playlist-clear", "", false},
             {Sep},
-            {Command, "Append File", "", "", "", true},
-            {Command, "Append Folder", "", "", "", true},
-            {Command, "Append URL", "", "", "", true},
-            {Command, "Remove", "Shift+R", "", "", true},
+            {Command, "Append File", "", "script-binding append_files_zenity", "", false},
+            {Command, "Append URL", "", "script_binding append_url_zenity", "", false},
+            {Command, "Remove", "", "playlist-remove current", "", false},
             {Sep},
-            {Command, "Move Up", "", "", "", true},
-            {Command, "Move Down", "", "", "", true},
+            {Command, "Move Up", "", function() movePlaylist("up") end, "", function() return (propNative("playlist-count") > 1) and false or true end},
+            {Command, "Move Down", "", function() movePlaylist("down") end, "", function() return (propNative("playlist-count") > 1) and false or true end},
             {Sep},
             -- These following two are checkboxes
-            {Check, "Shuffle", "", "", false, true},
-            {Check, "Repeat", "", "", false, true},
-        },
-        
-        history_menu = {
-            {Command, "Show/Hide", "", "", "", true},
-            {Command, "Clear", "", "", "", true},
+            {Check, "Shuffle", "", "cycle shuffle", function() return propNative("shuffle") end, false},
+            {Check, "Repeat", "", "cycle-values loop-playlist \"inf\" \"no\"", function() return stateLoop() end, false},
         },
         
         tools_menu = {
-            {Command, "Undo", "", "", "", true},
-            {Command, "Redo", "", "", "", true},
-            {Sep},
-            {Command, "Playlist", "", "", "", true}, -- No menu yet
-            -- Not sure if I need this, mpv doesn't really keep a recent history beyond watch_later
-            -- config files, which is not quite the same thing.
-            {Command, "History", "", "", "", true}, -- No menu yet
+            {Cascade, "Playlist", "playlist_menu", "", "", false},
             {Command, "Find Subtitle (Subit)", "", "script-binding subit", "", false},
-            {Command, "Subitle Viewer", "", "", "", true},
             {Command, "Playback Information", "Tab", "script-binding display-stats-toggle", "", false},
-            {Command, "Log Viewer", "", "", "", true},
-            {Sep},
-            {Command, "Preferences", "", "", "", true},
-            {Command, "Reload Skin", "", "", "", true},
-            {Sep},
-            -- These following two are checkboxes
-            {Check, "Auto-exit", "", "", false, true},
-            {Check, "Auto-shutdown", "", "", false, true},
         },
         
         staysontop_menu = {
-            {Command, "Empty", "", "", "", true},
+            {Command, "Select Next", "", "cycle ontop", "", false},
             {Sep},
-            -- Radio buttons
-            {Radio, "Off", "", "", false, true},
-            {Radio, "Playing", "", "", false, true},
-            {Radio, "Always", "", "", false, true},
+            {Radio, "Off", "", "set ontop \"yes\"", function() return stateOnTop(false) end, false},
+            {Radio, "On", "", "set ontop \"no\"", function() return stateOnTop(true) end, false},
         },
         
         window_menu = {
             {Cascade, "Stays on Top", "staysontop_menu", "", "", false},
-            {Check, "Remove Frame", "", "cycle border", function() return propNative("border") end, true},
+            {Check, "Remove Frame", "", "cycle border", function() return propNative("border") end, false},
             {Sep},
-            {Command, "Display Size x10%", "", "", "", true},
-            {Command, "Display Size x20%", "", "", "", true},
-            {Command, "Display Size x30%", "", "", "", true},
-            {Command, "Display Size x40%", "", "", "", true},
-            {Command, "Video Size x100%", "", "", "", true},
+            {Command, "Toggle Fullscreen", "", "cycle fullscreen", "", false},
+            {Command, "Enter Fullscreen", "", "set fullscreen \"no\"", "", false},
+            {Command, "Exit Fullscreen", "", "set fullscreen \"yes\"", "", false},
             {Sep},
-            {Command, "Toggle Fullscreen", "", "", "", true},
-            {Command, "Enter Fullscreen", "", "", "", true},
-            {Command, "Exit Fullscreen", "", "", "", true},
-            {Sep},
-            {Command, "Maximize", "", "", "", true},
-            {Command, "Minimize", "", "", "", true},
-            {Command, "Close", "Ctrl+W", "", "", true},
+            {Command, "Close", "Ctrl+W", "quit", "", false},
         },
         
         {Cascade, "Open", "open_menu", "", "", false},
@@ -728,11 +744,10 @@ mp.register_event("file-loaded", function()
     menulist = {"open_menu", "speed_menu", "abrepeat_menu", "seek_menu", "edition_menu",
         "chapter_menu", "play_menu", "vidtrack_menu", "screenshot_menu", "aspect_menu",
         "zoom_menu", "rotate_menu", "screenpos_menu", "screenalign_menu", "deint_menu",
-        "color_menu", "video_menu", "audtrack_menu", "audsync_menu", "volume_menu",
-        "audio_menu", "subtrack_menu", "subalign_menu", "subpos_menu", "subscale_menu",
-        "subsync_menu", "subtitle_menu", "playlist_menu", "history_menu", "tools_menu",
-        "staysontop_menu", "window_menu"
-    }
+        "filter_menu", "color_menu", "video_menu", "audtrack_menu", "audsync_menu",
+        "volume_menu", "audio_menu", "subtrack_menu", "subalign_menu", "subpos_menu",
+        "subscale_menu", "subsync_menu", "subtitle_menu", "playlist_menu", "tools_menu",
+        "staysontop_menu", "window_menu"}
     
     -- This check ensures that all tables of data without Sep in them are 6 items long.
     for i = 1, #menulist do
