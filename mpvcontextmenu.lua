@@ -7,12 +7,10 @@
  * - Comprehensive sub-menus providing access to various mpv functionality
  * - Dynamic menu items and commands, disabled items, separators.
  * - Reasonably well behaved/integrated considering it's an external application.
+ * - Configurable options for some values (changes visually in menu too)
  * 
  * TODO:
- * - Implement functionality for some of the items that will require a file picker dialog
- *   or the like (prefer Zenity, but consider KDialog also)
- * - Possibly different menus for different bindings or states? Perhaps simply better
- *   handling of multiple file types (beyond video) and ensuring correct menus appear.
+ * - Possibly look at reading keybindings from input.conf
  *
  * Setup:
  * - Make sure Tcl/Tk is installed and `wish` is accessible and works.
@@ -20,17 +18,52 @@
  *   - For windows, download a zip from http://www.tcl3d.org/html/appTclkits.html
  *     extract and then rename to wish.exe and put it at the path or at the mpv.exe dir.
  *     - Or, tclsh/wish from git/msys2(mingw) works too - set `interpreter` below.
- * - Put mpvcontextmenu.lua (this file) and mpvcontextmenu.tcl at the mpv scripts dir.
+ * - Put mpvcontextmenu.lua (this file) and mpvcontextmenu.tcl along with langcodes.lua
+ *   and zenity-dialogs in the mpv scripts dir.
  * - Add a key/mouse binding at input.conf, e.g. "MOUSE_BTN2 script_message mpv_context_menu"
  * - Once it works, configure the context_menu items below to your liking.
  *
  * 2017-02-02 - Version 0.1 - Initial version (avih)
  * 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
  * 2017-07-20 - Version 0.3 - Add/remove/update menus and include zenity bindings (carmanught)
+ * 2017-07-22 - Version 0.4 - Reordered context_menu items, changed table length check, modify
+ *                            menu build iterator slightly and add options (carmanaught)
  * 
  ***************************************************************
 --]]
+
 local langcodes = require "langcodes"
+local utils = require 'mp.utils'
+require 'mp.options'
+
+local opt = {
+    -- Play > Speed - Percentage
+    playSpeed = 5,
+    -- Play > Seek - Seconds
+    seekSmall = 5,
+    seekMedium = 30,
+    seekLarge = 60,
+    -- Video > Aspect - Percentage
+    vidAspect = 0.1,
+    -- Video > Zoom - Percentage
+    vidZoom = 0.1,
+    -- Video > Screen Position - Percentage
+    vidPos = 0.1,
+    -- Video > Color - Percentage
+    vidColor = 1,
+    -- Audio > Sync 
+    audSync = 100,
+    -- Audio > Volume - Percentage
+    audVol = 2,
+    -- Subtitle > Position - Percentage
+    subPos = 1,
+    -- Subtitle > Scale - Percentage
+    subScale = 1,
+    -- Subtitle > Sync
+    subSync = 100, -- Milliseconds
+}
+read_options(opt)
+
 local verbose = false  -- true -> Dump console messages also without -v
 function info(x) mp.msg[verbose and "info" or "verbose"](x) end
 function mpdebug(x) mp.msg.info(x) end -- For printing other debug without verbose
@@ -203,8 +236,7 @@ local function audTrackMenu()
             -- Convert ISO 639-1/2 codes
             if not (audTrackLang == nil) then audTrackLang = getLang(audTrackLang) and getLang(audTrackLang) or audTrackLang end
             
-
-            if (audTrackTitle) then audTrackTitle = audTrackTitle .. " (" .. audTrackLang .. ")"
+            if (audTrackTitle) then audTrackTitle = audTrackTitle .. ((audTrackLang ~= nil) and " (" .. audTrackLang .. ")" or "")
             elseif (audTrackLang) then audTrackTitle = audTrackLang
             else audTrackTitle = "Audio Track " .. i end
             
@@ -246,7 +278,7 @@ local function subTrackMenu()
             -- Convert ISO 639-1/2 codes
             if not (subTrackLang == nil) then subTrackLang = getLang(subTrackLang) and getLang(subTrackLang) or subTrackLang end
             
-            if (subTrackTitle) then subTrackTitle = subTrackTitle .. " (" .. subTrackLang .. ")"
+            if (subTrackTitle) then subTrackTitle = subTrackTitle .. ((subTrackLang ~= nil) and " (" .. subTrackLang .. ")" or "")
             elseif (subTrackLang) then subTrackTitle = subTrackLang
             else subTrackTitle = "Subtitle Track " .. i end
             
@@ -412,49 +444,24 @@ local context_menu = {}
 
 mp.register_event("file-loaded", function()
     context_menu = {
+        {Cascade, "Open", "open_menu", "", "", false},
+        {Sep},
+        {Cascade, "Play", "play_menu", "", "", false},
+        {Cascade, "Video", "video_menu", "", "", false},
+        {Cascade, "Audio", "audio_menu", "", "", false},
+        {Cascade, "Subtitle", "subtitle_menu", "", "", false},
+        {Sep},
+        {Cascade, "Tools", "tools_menu", "", "", false},
+        {Cascade, "Window", "window_menu", "", "", false},
+        {Sep},
+        {Command, "Dismiss Menu", "", noop, "", false},
+        {Command, "Quit", "", "quit", "", false},
+        
         open_menu = {
             {Command, "File", "Ctrl+F", "script-binding add_files_zenity", "", false},
             {Command, "Folder", "Ctrl+G", "script-binding add_folder_zenity", "", false},
             {Command, "URL", "", "script-binding open_url_zenity", "", false},
-            {Sep},
-            {Command, "Recent", "", "", "", true}, -- No menu yet
         },
-        
-        speed_menu = {
-            {Command, "Reset", "Backspace", "no-osd set speed 1.0 ; show-text \"Play Speed - Reset\"", "", false},
-            {Sep},
-            {Command, "+5%", "=", "multiply speed 1.05", "", false},
-            {Command, "-5%", "-", "multiply speed 0.95", "", false},
-        },
-        
-        abrepeat_menu = {
-            {AB, "Set/Clear A-B Loop", "R", "ab-loop", function() return stateABLoop() end, false},
-            {Check, "Toggle Infinite Loop", "", "cycle-values loop-file \"inf\" \"no\"", propNative("loop-file"), false},
-        },
-        
-        seek_menu = {
-            {Command, "Beginning", "Ctrl+Home", "no-osd seek 0 absolute", "", false},
-            {Sep},
-            {Command, "+5 Sec", "Right", "no-osd seek 5", "", false},
-            {Command, "-5 Sec", "Left", "no-osd seek -5", "", false},
-            {Command, "+30 Sec", "Up", "no-osd seek 30", "", false},
-            {Command, "-30 Sec", "Down", "no-osd seek -30", "", false},
-            {Command, "+60 Sec", "End", "no-osd seek 60", "", false},
-            {Command, "-60 Sec", "Home", "no-osd seek -60", "", false},
-            {Sep},
-            {Command, "Previous Frame", "Alt+Left", "frame-back-step", "", false},
-            {Command, "Next Frame", "Alt+Right", "frame-step", "", false},
-            {Command, "Next Black Frame", "Alt+b", "script-binding skip_scene", "", false},
-            {Sep},
-            {Command, "Previous Subtitle", "", "no-osd sub-seek -1", "", false},
-            {Command, "Current Subtitle", "", "no-osd sub-seek 0", "", false},
-            {Command, "Next Subtitle", "", "no-osd sub-seek 1", "", false},
-        },
-        
-        -- Use functions returning arrays/tables, since we don't need these menus if there
-        -- aren't any editions or any chapters to seek through.
-        edition_menu = editionMenu(),
-        chapter_menu = chapterMenu(),
         
         play_menu = {
             {Command, "Play/Pause", "Space", "cycle pause", "", false},
@@ -471,6 +478,58 @@ mp.register_event("file-loaded", function()
             {Cascade, "Chapter", "chapter_menu", "", "", function() return enableChapter() end},
         },
         
+        speed_menu = {
+            {Command, "Reset", "Backspace", "no-osd set speed 1.0 ; show-text \"Play Speed - Reset\"", "", false},
+            {Sep},
+            {Command, "+" .. opt.playSpeed .. "%", "=", "multiply speed " .. (1 + (opt.playSpeed / 100)), "", false},
+            {Command, "-" .. opt.playSpeed .. "%", "-", "multiply speed " .. (1 - (opt.playSpeed / 100)), "", false},
+        },
+        
+        abrepeat_menu = {
+            {AB, "Set/Clear A-B Loop", "R", "ab-loop", function() return stateABLoop() end, false},
+            {Check, "Toggle Infinite Loop", "", "cycle-values loop-file \"inf\" \"no\"", propNative("loop-file"), false},
+        },
+        
+        seek_menu = {
+            {Command, "Beginning", "Ctrl+Home", "no-osd seek 0 absolute", "", false},
+            {Sep},
+            {Command, "+" .. opt.seekSmall .. " Sec", "Right", "no-osd seek " .. opt.seekSmall, "", false},
+            {Command, "-" .. opt.seekSmall .. " Sec", "Left", "no-osd seek -" .. opt.seekSmall, "", false},
+            {Command, "+" .. opt.seekMedium .. " Sec", "Up", "no-osd seek " .. opt.seekMedium, "", false},
+            {Command, "-" .. opt.seekMedium .. " Sec", "Down", "no-osd seek -" .. opt.seekMedium, "", false},
+            {Command, "+" .. opt.seekLarge .. " Sec", "End", "no-osd seek " .. opt.seekLarge, "", false},
+            {Command, "-" .. opt.seekLarge .. " Sec", "Home", "no-osd seek -" .. opt.seekLarge, "", false},
+            {Sep},
+            {Command, "Previous Frame", "Alt+Left", "frame-back-step", "", false},
+            {Command, "Next Frame", "Alt+Right", "frame-step", "", false},
+            {Command, "Next Black Frame", "Alt+b", "script-binding skip_scene", "", false},
+            {Sep},
+            {Command, "Previous Subtitle", "", "no-osd sub-seek -1", "", false},
+            {Command, "Current Subtitle", "", "no-osd sub-seek 0", "", false},
+            {Command, "Next Subtitle", "", "no-osd sub-seek 1", "", false},
+        },
+        
+        -- Use functions returning arrays/tables, since we don't need these menus if there
+        -- aren't any editions or any chapters to seek through.
+        edition_menu = editionMenu(),
+        chapter_menu = chapterMenu(),
+        
+        video_menu = {
+            {Cascade, "Track", "vidtrack_menu", "", "", function() return enableVidTrack() end},
+            {Sep},
+            {Cascade, "Take Screenshot", "screenshot_menu", "", "", false},
+            {Sep},
+            {Cascade, "Aspect Ratio", "aspect_menu", "", "", false},
+            {Cascade, "Zoom", "zoom_menu", "", "", false},
+            {Cascade, "Rotate", "rotate_menu", "", "", false},
+            {Cascade, "Screen Position", "screenpos_menu", "", "", false},
+            {Cascade, "Screen Alignment", "screenalign_menu", "", "", false},
+            {Sep},
+            {Cascade, "Deinterlacing", "deint_menu", "", "", false},
+            {Cascade, "Filter", "filter_menu", "", "", false},
+            {Cascade, "Adjust Color", "color_menu", "", "", false},
+        },
+        
         -- Use function to return list of Video Tracks
         vidtrack_menu = vidTrackMenu(),
         
@@ -480,7 +539,7 @@ mp.register_event("file-loaded", function()
             {Command, "Screenshot (Subs/OSD/Scaled)", "", "async screenshot window", "", false},
         },
         
-       aspect_menu = {
+        aspect_menu = {
             {Command, "Reset", "Ctrl+Shift+R", "no-osd set video-aspect \"-1\" ; no-osd set video-aspect \"-1\" ; show-text \"Video Aspect Ratio - Reset\"", "", false},
             {Command, "Select Next", "", "cycle-values video-aspect \"4:3\" \"16:10\" \"16:9\" \"1.85:1\" \"2.35:1\" \"-1\" \"-1\"", "", false},
             {Sep},
@@ -490,15 +549,15 @@ mp.register_event("file-loaded", function()
             {Radio, "1.85:1 (Wide Vision)", "", "set video-aspect \"1.85:1\"", function() return stateRatio("1.85:1") end, false},
             {Radio, "2.35:1 (CinemaScope)", "", "set video-aspect \"2.35:1\"", function() return stateRatio("2.35:1") end, false},
             {Sep},
-            {Command, "+0.001", "Ctrl+Shift+A", "add video-aspect 0.001", "", false},
-            {Command, "-0.001", "Ctrl+Shift+D", "add video-aspect -0.001", "", false},
+            {Command, "+" .. opt.vidAspect .. "%", "Ctrl+Shift+A", "add video-aspect " .. (opt.vidAspect / 100), "", false},
+            {Command, "-" .. opt.vidAspect .. "%", "Ctrl+Shift+D", "add video-aspect -" .. (opt.vidAspect / 100), "", false},
         },
         
         zoom_menu = {
             {Command, "Reset", "Shift+R", "no-osd set panscan 0 ; show-text \"Pan/Scan - Reset\"", "", false},
             {Sep},
-            {Command, "+0.1 %", "Shift+T", "add panscan 0.001", "", false},
-            {Command, "-0.1 %", "Shift+G", "add panscan -0.001", "", false},
+            {Command, "+" .. opt.vidZoom .. "%", "Shift+T", "add panscan " .. (opt.vidZoom / 100), "", false},
+            {Command, "-" .. opt.vidZoom .. "%", "Shift+G", "add panscan -" .. (opt.vidZoom / 100), "", false},
         },
         
         rotate_menu = {
@@ -514,11 +573,11 @@ mp.register_event("file-loaded", function()
         screenpos_menu = {
             {Command, "Reset", "Shift+X", "no-osd set video-pan-x 0 ; no-osd set video-pan-y 0 ; show-text \"Video Pan - Reset\"", "", false},
             {Sep},
-            {Command, "Horizontally +0.1%", "Shift+D", "add video-pan-x 0.001", "", false},
-            {Command, "Horizontally -0.1%", "Shift+A", "add video-pan-x -0.001", "", false},
+            {Command, "Horizontally +" .. opt.vidPos .. "%", "Shift+D", "add video-pan-x " .. (opt.vidPos / 100), "", false},
+            {Command, "Horizontally -" .. opt.vidPos .. "%", "Shift+A", "add video-pan-x -" .. (opt.vidPos / 100), "", false},
             {Sep},
-            {Command, "Vertically +0.1%", "Shift+S", "add video-pan-y -0.001", "", false},
-            {Command, "Vertically -0.1%", "Shift+W", "add video-pan-y 0.001", "", false},
+            {Command, "Vertically +" .. opt.vidPos .. "%", "Shift+S", "add video-pan-y -" .. (opt.vidPos / 100), "", false},
+            {Command, "Vertically -" .. opt.vidPos .. "%", "Shift+W", "add video-pan-y " .. (opt.vidPos / 100), "", false},
         },
         
         screenalign_menu = {
@@ -549,46 +608,39 @@ mp.register_event("file-loaded", function()
         color_menu = {
             {Command, "Reset", "O", "no-osd set brightness 0 ; no-osd set contrast 0 ; no-osd set hue 0 ; no-osd set saturation 0 ; show-text \"Colors - Reset\"", "", false},
             {Sep},
-            {Command, "Brightness +1%", "T", "add brightness 1", "", false},
-            {Command, "Brightness -1%", "G", "add brightness -1", "", false},
-            {Command, "Contrast +1%", "Y", "add contrast 1", "", false},
-            {Command, "Contrast -1%", "H", "add contrast -1", "", false},
-            {Command, "Saturation +1%", "U", "add saturation 1", "", false},
-            {Command, "Saturation -1%", "J", "add saturation -1", "", false},
-            {Command, "Hue +1%", "I", "add hue 1", "", false},
-            {Command, "Hue -1%", "K", "add hue -1", "", false},
+            {Command, "Brightness +" .. opt.vidColor .. "%", "T", "add brightness " .. opt.vidColor, "", false},
+            {Command, "Brightness -" .. opt.vidColor .. "%", "G", "add brightness -" .. opt.vidColor, "", false},
+            {Command, "Contrast +" .. opt.vidColor .. "%", "Y", "add contrast " .. opt.vidColor, "", false},
+            {Command, "Contrast -" .. opt.vidColor .. "%", "H", "add contrast -" .. opt.vidColor, "", false},
+            {Command, "Saturation +" .. opt.vidColor .. "%", "U", "add saturation " .. opt.vidColor, "", false},
+            {Command, "Saturation -" .. opt.vidColor .. "%", "J", "add saturation -" .. opt.vidColor, "", false},
+            {Command, "Hue +" .. opt.vidColor .. "%", "I", "add hue " .. opt.vidColor, "", false},
+            {Command, "Hue -" .. opt.vidColor .. "%", "K", "add hue -" .. opt.vidColor, "", false},
         },
         
-        video_menu = {
-            {Cascade, "Track", "vidtrack_menu", "", "", function() return enableVidTrack() end},
+        audio_menu = {
+            {Cascade, "Track", "audtrack_menu", "", "", false},
+            {Cascade, "Sync", "audsync_menu", "", "", false},
             {Sep},
-            {Cascade, "Take Screenshot", "screenshot_menu", "", "", false},
-            {Sep},
-            {Cascade, "Aspect Ratio", "aspect_menu", "", "", false},
-            {Cascade, "Zoom", "zoom_menu", "", "", false},
-            {Cascade, "Rotate", "rotate_menu", "", "", false},
-            {Cascade, "Screen Position", "screenpos_menu", "", "", false},
-            {Cascade, "Screen Alignment", "screenalign_menu", "", "", false},
-            {Sep},
-            {Cascade, "Deinterlacing", "deint_menu", "", "", false},
-            {Cascade, "Filter", "filter_menu", "", "", false},
-            {Cascade, "Adjust Color", "color_menu", "", "", false},
+            {Cascade, "Volume", "volume_menu", "", "", false},
+            {Cascade, "Channel Layout", "channel_layout", "", "", false},
         },
-        -- Use function to return list of Audio Tracks
+        
+        -- Use function to return list of Audio Tracks        
         audtrack_menu = audTrackMenu(),
         
         audsync_menu = {
             {Command, "Reset", "\\", "no-osd set audio-delay 0 ; show-text \"Audio Sync - Reset\"", "", false},
             {Sep},
-            {Command, "+0.1 Sec", "]", "add audio-delay 0.100", "", false},
-            {Command, "-0.1 Sec", "[", "add audio-delay -0.100", "", false},
+            {Command, "+" .. opt.audSync .. " ms", "]", "add audio-delay " .. (opt.audSync / 1000) .. "", "", false},
+            {Command, "-" .. opt.audSync .. " ms", "[", "add audio-delay -" .. (opt.audSync / 1000) .. "", "", false},
         },
         
         volume_menu = {
             {Check, function() return muteLabel() end, "", "cycle mute", function() return propNative("mute") end, false},
             {Sep},
-            {Command, "+2%", "Shift+Up", "add volume 2", "", false},
-            {Command, "-2%", "Shift+Down", "add volume -2", "", false},
+            {Command, "+" .. opt.audVol.. "%", "Shift+Up", "add volume " .. opt.audVol, "", false},
+            {Command, "-" .. opt.audVol.. "%", "Shift+Down", "add volume -" .. opt.audVol, "", false},
         },
         
         channel_layout = {
@@ -632,13 +684,16 @@ mp.register_event("file-loaded", function()
             {Radio, "8.0ch (Octagonal)", "", "set audio-channels \"octagonal\"", function() return stateAudChannel("octagonal") end, false},
         },
         
-        audio_menu = {
-            {Cascade, "Track", "audtrack_menu", "", "", false},
-            {Cascade, "Sync", "audsync_menu", "", "", false},
+        subtitle_menu = {
+            {Cascade, "Track", "subtrack_menu", "", "", false},
             {Sep},
-            {Cascade, "Volume", "volume_menu", "", "", false},
-            {Cascade, "Channel Layout", "channel_layout", "", "", false},
+            {Cascade, "Alightment", "subalign_menu", "", "", false},
+            {Cascade, "Position", "subpos_menu", "", "", false},
+            {Cascade, "Scale", "subscale_menu", "", "", false},
+            {Sep},
+            {Cascade, "Sync", "subsync_menu", "", "", false},
         },
+        
         -- Use function to return list of Subtitle Tracks
         subtrack_menu = subTrackMenu(),
         
@@ -652,8 +707,8 @@ mp.register_event("file-loaded", function()
         subpos_menu = {
             {Command, "Reset", "Alt+S", "no-osd set sub-pos 100 ; no-osd set sub-scale 1 ; show-text \"Subitle Position - Reset\"", "", false},
             {Sep},
-            {Command, "+1%", "S", "add sub-pos 1", "", false},
-            {Command, "-1%", "W", "add sub-pos -1", "", false},
+            {Command, "+" .. opt.subPos .. "%", "S", "add sub-pos " .. opt.subPos, "", false},
+            {Command, "-" .. opt.subPos .. "%", "W", "add sub-pos -" .. opt.subPos, "", false},
             {Sep},
             {Radio, "Display on Letterbox", "", "set image-subs-video-resolution \"no\"", function() return stateSubPos(false) end, false},
             {Radio, "Display in Video", "", "set image-subs-video-resolution \"yes\"", function() return stateSubPos(true) end, false},
@@ -662,25 +717,15 @@ mp.register_event("file-loaded", function()
         subscale_menu = {
             {Command, "Reset", "", "no-osd set sub-pos 100 ; no-osd set sub-scale 1 ; show-text \"Subitle Position - Reset\"", "", false},
             {Sep},
-            {Command, "+1%", "Shift+L", "add sub-scale 0.01", "", false},
-            {Command, "-1%", "Shift+K", "add sub-scale -0.01", "", false},
+            {Command, "+" .. opt.subScale .. "%", "Shift+L", "add sub-scale " .. (opt.subScale / 100), "", false},
+            {Command, "-" .. opt.subScale .. "%", "Shift+K", "add sub-scale -" .. (opt.subScale / 100), "", false},
         },
         
         subsync_menu = {
             {Command, "Reset", "Q", "no-osd set sub-delay 0 ; show-text \"Subtitle Delay - Reset\"", "", false},
             {Sep},
-            {Command, "+0.1 Sec", "D", "add sub-delay +0.1", "", false},
-            {Command, "-0.1 Sec", "A", "add sub-delay -0.1", "", false},
-        },
-        
-        subtitle_menu = {
-            {Cascade, "Track", "subtrack_menu", "", "", false},
-            {Sep},
-            {Cascade, "Alightment", "subalign_menu", "", "", false},
-            {Cascade, "Position", "subpos_menu", "", "", false},
-            {Cascade, "Scale", "subscale_menu", "", "", false},
-            {Sep},
-            {Cascade, "Sync", "subsync_menu", "", "", false},
+            {Command, "+" .. opt.subSync .. " ms", "D", "add sub-delay +" .. (opt.subSync / 1000) .. "", "", false},
+            {Command, "-" .. opt.subSync .. " ms", "A", "add sub-delay -" .. (opt.subSync / 1000) .. "", "", false},
         },
         
         playlist_menu = {
@@ -695,10 +740,9 @@ mp.register_event("file-loaded", function()
             {Command, "Append URL", "", "script_binding append_url_zenity", "", false},
             {Command, "Remove", "", "playlist-remove current", "", false},
             {Sep},
-            {Command, "Move Up", "", function() movePlaylist("up") end, "", function() return (propNative("playlist-count") > 1) and false or true end},
-            {Command, "Move Down", "", function() movePlaylist("down") end, "", function() return (propNative("playlist-count") > 1) and false or true end},
+            {Command, "Move Up", "", function() movePlaylist("up") end, "", function() return (propNative("playlist-count") < 2) and true or false end},
+            {Command, "Move Down", "", function() movePlaylist("down") end, "", function() return (propNative("playlist-count") < 2) and true or false end},
             {Sep},
-            -- These following two are checkboxes
             {Check, "Shuffle", "", "cycle shuffle", function() return propNative("shuffle") end, false},
             {Check, "Repeat", "", "cycle-values loop-playlist \"inf\" \"no\"", function() return stateLoop() end, false},
         },
@@ -709,16 +753,9 @@ mp.register_event("file-loaded", function()
             {Command, "Playback Information", "Tab", "script-binding display-stats-toggle", "", false},
         },
         
-        staysontop_menu = {
-            {Command, "Select Next", "", "cycle ontop", "", false},
-            {Sep},
-            {Radio, "Off", "", "set ontop \"yes\"", function() return stateOnTop(false) end, false},
-            {Radio, "On", "", "set ontop \"no\"", function() return stateOnTop(true) end, false},
-        },
-        
         window_menu = {
             {Cascade, "Stays on Top", "staysontop_menu", "", "", false},
-            {Check, "Remove Frame", "", "cycle border", function() return propNative("border") end, false},
+            {Check, "Remove Frame", "", "cycle border", function() return not propNative("border") end, false},
             {Sep},
             {Command, "Toggle Fullscreen", "", "cycle fullscreen", "", false},
             {Command, "Enter Fullscreen", "", "set fullscreen \"no\"", "", false},
@@ -727,49 +764,30 @@ mp.register_event("file-loaded", function()
             {Command, "Close", "Ctrl+W", "quit", "", false},
         },
         
-        {Cascade, "Open", "open_menu", "", "", false},
-        {Sep},
-        {Cascade, "Play", "play_menu", "", "", false},
-        {Cascade, "Video", "video_menu", "", "", false},
-        {Cascade, "Audio", "audio_menu", "", "", false},
-        {Cascade, "Subtitle", "subtitle_menu", "", "", false},
-        {Sep},
-        {Cascade, "Tools", "tools_menu", "", "", false},
-        {Cascade, "Window", "window_menu", "", "", false},
-        {Sep},
-        {Command, "Dismiss Menu", "", noop, "", false},
-        {Command, "Quit", "", "quit", "", false},
+        staysontop_menu = {
+            {Command, "Select Next", "", "cycle ontop", "", false},
+            {Sep},
+            {Radio, "Off", "", "set ontop \"yes\"", function() return stateOnTop(false) end, false},
+            {Radio, "On", "", "set ontop \"no\"", function() return stateOnTop(true) end, false},
+        },        
     }
     
-    menulist = {"open_menu", "speed_menu", "abrepeat_menu", "seek_menu", "edition_menu",
-        "chapter_menu", "play_menu", "vidtrack_menu", "screenshot_menu", "aspect_menu",
-        "zoom_menu", "rotate_menu", "screenpos_menu", "screenalign_menu", "deint_menu",
-        "filter_menu", "color_menu", "video_menu", "audtrack_menu", "audsync_menu",
-        "volume_menu", "audio_menu", "subtrack_menu", "subalign_menu", "subpos_menu",
-        "subscale_menu", "subsync_menu", "subtitle_menu", "playlist_menu", "tools_menu",
-        "staysontop_menu", "window_menu"}
-    
     -- This check ensures that all tables of data without Sep in them are 6 items long.
-    for i = 1, #menulist do
-        if (i == 1) then
-            for subi = 1, #context_menu do
-                if not (context_menu[subi][1] == Sep) then
-                    if (#context_menu[subi] < 6) or (#context_menu[subi] > 6) then
-                        mpdebug("Menu item at index of " .. subi .. " is " .. #context_menu .. "items long")
-                    end
+    for key, value in pairs(context_menu) do
+        if (type(key) == "number") then
+            for i = 1, #context_menu do
+                if (context_menu[i][1] ~= Sep) then
+                    if (#context_menu[i] ~= 6) then  mpdebug("Menu item at index of " .. i .. " is " .. #context_menu .. "items long") end
+                end
+            end
+        else
+            for i = 1, #value do
+                if (value[i][1] ~= Sep) then
+                    if (#value[i] ~= 6) then mpdebug("Menu item at index of " .. i .. " is " .. #value[i] .. " items long for: " .. key) end
                 end
             end
         end
-        local thismenu = menulist[i]
-        for subi = 1, #context_menu[thismenu] do
-             if not (context_menu[thismenu][subi][1] == Sep) then
-                if (#context_menu[thismenu][subi] < 6) or (#context_menu[thismenu][subi] > 6) then
-                    mpdebug("Menu item at index of " .. subi .. " is " .. #context_menu[thismenu][subi] .. " items long for: " .. thismenu)
-                end
-             end
-        end
     end
-    
 end)
 
 local interpreter = "wish";  -- tclsh/wish/full-path
@@ -784,8 +802,6 @@ local menuscript = mp.find_config_file("scripts/mpvcontextmenu.tcl")
 -- Menu Index - This is the array/table index of the Current Menu, so we can use the Index in
 -- concert with the Current Menu to get the command, e.g. context_menu["play_menu"][1][4] for
 -- the command stored under the first menu item in the Play menu.
-
-local utils = require 'mp.utils'
 
 local function create_menu(menu, menuName, x, y)
     local mousepos = {}
@@ -835,15 +851,16 @@ local function create_menu(menu, menuName, x, y)
         if (subSubMenu) then
             args[#args+1] = subMenu
             args[#args+1] = subSubMenu
-            args[#args+1] = ""
+            for iter = 1, 3 do
+                args[#args+1] = ""
+            end
         elseif (subMenu) then
             args[#args+1] = subMenu
-            args[#args+1] = subSubMenu
-            for iter = 1, 2 do
+            for iter = 1, 4 do
                 args[#args+1] = ""
             end
         else
-            for iter = 1, 3 do
+            for iter = 1, 5 do
                 args[#args+1] = ""
             end
         end
@@ -860,20 +877,14 @@ local function create_menu(menu, menuName, x, y)
     end
     
     -- Iterate through the menu's and add them with their submenu's as arguments to be sent
-    -- to the Tcl script to parse
+    -- to the Tcl script to parse. Menu's can only be 3 levels deep.
     for i = 1, #menu do
-        args[#args+1] = menuName
-        args[#args+1] = i
-        
         if (menu[i][1] == Cascade) then
             subMenuName = menu[i][3]
             subMenu = menu[subMenuName]
             menuChange(menuName, subMenuName)
             
             for subi = 1, #subMenu do
-                args[#args+1] = subMenuName
-                args[#args+1] = subi
-                
                 if (subMenu[subi][1] == Cascade) then
                     subSubMenuName = subMenu[subi][3]
                     subSubMenu = menu[subSubMenuName]
@@ -886,18 +897,18 @@ local function create_menu(menu, menuName, x, y)
                     end
                     
                     addCascade(subMenu[subi][2], subMenu[subi][6])
-                    args[#args+1] = subMenuName
-                    args[#args+1] = subi
                     menuChange(menuName, subMenuName)
                 else
+                    args[#args+1] = subMenuName
+                    args[#args+1] = subi
                     addArgs(subMenu[subi])
                 end
             end
             addCascade(menu[i][2], menu[i][6])
-            args[#args+1] = menuName
-            args[#args+1] = i
             menuChange(menuName)
         else
+            args[#args+1] = menuName
+            args[#args+1] = i
             addArgs(menu[i])
         end
     end
@@ -915,7 +926,7 @@ local function create_menu(menu, menuName, x, y)
     })
     
     if (retVal.status ~= 0) then
-        mp.osd_message("Something happened ...")
+        mp.osd_message("Possible error in mpvcontextmenu.tcl")
         return
     end
 

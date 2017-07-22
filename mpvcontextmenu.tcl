@@ -8,6 +8,8 @@
 #
 # 2017-02-02 - Version 0.1 - Initial version (avih)
 # 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
+# 2017-07-22 - Version 0.3 - Change accelerator label handling (right align) and adjust
+#                            changemenu check to match mpvcontextmenu.lua changes
 # #############################################################
 
 # Required when launching via tclsh, no-op when launching via wish
@@ -23,7 +25,7 @@ wm withdraw .
 set argList [split [lindex $argv 0] "|"]
 
 if { $::argc < 1 } {
-    puts "Usage: context.tcl menufile"
+    puts "Usage: context.tcl x y \"base menu name\" (4 x \"\") .. \"sets of 7 args\""
     exit 1
 }
 
@@ -41,7 +43,7 @@ set RESP_CANCEL -1
 
 set boxCheck "\[X\] "
 set boxUncheck "\[ \] "
-set radioSelect "(x) "
+set radioSelect "(X) "
 set radioEmpty "( ) "
 set boxA "\[A\] "
 set boxB "\[B\] "
@@ -51,14 +53,30 @@ set labelPre ""
 set menuWidth 36
 set baseMenuName "context_menu"
 set first 1
+array set maxAccel {}
 
-# I haven't found a way to right-justify the accelerator so we'll just build the label
-# and shortcut together and add spaces between instead of using:
-# -accel $accelSpacer$itemAccel
-proc makeLabel {pre lbl acl} {
-    set spacesCount [expr $::menuWidth - [string length $pre] - [string length $lbl] - [string length $acl]]
+# To make the accelerator appear as if they're justified to the right, we iterate through
+# the entire list and set the maximum accelerator length for each menu ($tableName) after
+# check if a value exists first, increasing the max value if the length of an item is greater.
+foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable} $argList {
+    if {$tableName != "changemenu" || $tableName != "cascade"} {
+        if {![info exists ::maxAccel($tableName)]} {
+            set ::maxAccel($tableName) [string length $itemAccel]
+        } else {
+        if {[string length $itemAccel] > $::maxAccel($tableName)} {
+            set ::maxAccel($tableName) [string length $itemAccel]
+        }
+        }
+    }
+}
+
+# We call this when creating the accelerator labels, passing the current menu ($tableName)
+# and the accelerator, getting the max length for that menu and adding 4 spaces, then
+# appending the label after the spaces, making it appear justified to the right.
+proc makeLabel {curTable accelLabel} {
+    set spacesCount [expr [expr $::maxAccel($curTable) + 4] - [string length $accelLabel]]
     set whiteSpace [string repeat " " $spacesCount]
-    set fullLabel $pre$lbl$whiteSpace$acl
+    set fullLabel $whiteSpace$accelLabel
     return $fullLabel
 }
 
@@ -82,36 +100,35 @@ foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable
         set itemDisable "normal"
     }
     
-    if {$itemType == "changemenu"} {
-        if {$itemAccel == ""} {
-            # Need to understand how menus work to fix window name $menuname already exists
-            if {![winfo exists .$itemLabel]} {
-                menu .$itemLabel -tearoff 0
+    if {$tableName == "changemenu"} {
+        if {$itemType == ""} {
+            if {![winfo exists .$tableIndex]} {
+                menu .$tableIndex -tearoff 0
             }
-            set curMenu .$itemLabel
-            set preMenu .$itemLabel
+            set curMenu .$tableIndex
+            set preMenu .$tableIndex
         } else {
-            if {$itemState == ""} {
-                if {![winfo exists .$itemLabel]} { 
-                    menu .$itemLabel -tearoff 0
+            if {$itemLabel == ""} {
+                if {![winfo exists .$tableIndex]} { 
+                    menu .$tableIndex -tearoff 0
                 }
-                if {![winfo exists .$itemLabel.$itemAccel]} {
-                    menu .$itemLabel.$itemAccel -tearoff 0
+                if {![winfo exists .$tableIndex.$itemType]} {
+                    menu .$tableIndex.$itemType -tearoff 0
                 }
-                set curMenu .$itemLabel.$itemAccel
-                set preMenu .$itemLabel
+                set curMenu .$tableIndex.$itemType
+                set preMenu .$tableIndex
             } else {
-                if {![winfo exists .$itemLabel]} {
-                    menu .$itemLabel -tearoff 0
+                if {![winfo exists .$tableIndex]} {
+                    menu .$tableIndex -tearoff 0
                 }
-                if {![winfo exists .$itemLabel.$itemAccel]} {
-                    menu .$itemLabel.$itemAccel -tearoff 0
+                if {![winfo exists .$tableIndex.$itemType]} {
+                    menu .$tableIndex.$itemType -tearoff 0
                 }
-                if {![winfo exists .$itemLabel.$itemAccel.$itemState]} {
-                    menu .$itemLabel.$itemAccel.$itemState -tearoff 0
+                if {![winfo exists .$tableIndex.$itemType.$itemLabel]} {
+                    menu .$tableIndex.$itemType.$itemLabel -tearoff 0
                 }
-                set curMenu .$itemLabel.$itemAccel.$itemState
-                set preMenu .$itemLabel.$itemAccel
+                set curMenu .$tableIndex.$itemType.$itemLabel
+                set preMenu .$tableIndex.$itemType
             }
         }
         continue
@@ -130,7 +147,7 @@ foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable
     }
     
     if {$itemType == "command"} {
-        $curMenu add command -label [makeLabel $emptyPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        $curMenu add command -label $emptyPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
         continue
     }
     
@@ -144,7 +161,7 @@ foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable
             set labelPre $boxUncheck
         }
         
-        $curMenu add command -label [makeLabel $labelPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        $curMenu add command -label $labelPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
         continue
     }
     
@@ -155,7 +172,7 @@ foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable
             set labelPre $radioEmpty
         }
         
-        $curMenu add command -label [makeLabel $labelPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        $curMenu add command -label $labelPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
         continue
     }
     
@@ -168,10 +185,9 @@ foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable
             set labelPre $boxUncheck
         }
         
-        $curMenu add command -label [makeLabel $labelPre $itemLabel $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        $curMenu add command -label $labelPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
         continue
     }
-    
 }
 
 # Read the absolute mouse pointer position if we're not given a pos via argv
