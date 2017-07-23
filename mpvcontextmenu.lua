@@ -19,7 +19,7 @@
  *     extract and then rename to wish.exe and put it at the path or at the mpv.exe dir.
  *     - Or, tclsh/wish from git/msys2(mingw) works too - set `interpreter` below.
  * - Put mpvcontextmenu.lua (this file) and mpvcontextmenu.tcl along with langcodes.lua
- *   and zenity-dialogs in the mpv scripts dir.
+ *   and zenity-dialogs.lua in the mpv scripts dir.
  * - Add a key/mouse binding at input.conf, e.g. "MOUSE_BTN2 script_message mpv_context_menu"
  * - Once it works, configure the context_menu items below to your liking.
  *
@@ -51,7 +51,7 @@ local opt = {
     vidPos = 0.1,
     -- Video > Color - Percentage
     vidColor = 1,
-    -- Audio > Sync 
+    -- Audio > Sync - Milliseconds
     audSync = 100,
     -- Audio > Volume - Percentage
     audVol = 2,

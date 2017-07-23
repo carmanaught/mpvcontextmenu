@@ -14,6 +14,23 @@
 -- by specifying script bindings below or in input.conf
 -- 
 utils = require "mp.utils"
+require "mp.options"
+
+local opt = {
+    -- Standard keybindings
+    addFiles = "Ctrl+f"
+    addFolder = "Ctrl+g"
+    appendFiles = "Ctrl+Shift+f"
+    appendFolder = "Ctrl+Shift+g"
+    addSubtitle = "F"
+    -- These bindings default to nil
+    addURL = nil
+    openURL = nil
+    openPlaylist = nil
+    addAudio = nil
+}
+read_options(opt)
+
 Zenity = "zenity" -- Specify the path here if necessary
 function trim(s)
   return s:match"^()%s*$" and "" or s:match"^%s*(.*%S)"
@@ -276,13 +293,13 @@ function addAudio()
     end
 end
 
-mp.add_key_binding("Ctrl+f", "add_files_zenity", addFiles)
-mp.add_key_binding("Ctrl+g", "add_folder_zenity", addFolder)
-mp.add_key_binding("Ctrl+Shift+f", "append_files_zenity", appendFiles)
-mp.add_key_binding("Ctrl+Shift+g", "append_folder_zenity", appendFolder)
-mp.add_key_binding("F", "add_subtitle_zenity", addSubtitle)
+mp.add_key_binding(opt.addFile, "add_files_zenity", addFiles)
+mp.add_key_binding(opt.addFolder, "add_folder_zenity", addFolder)
+mp.add_key_binding(opt.appendFiles, "append_files_zenity", appendFiles)
+mp.add_key_binding(opt.appendFolder, "append_folder_zenity", appendFolder)
+mp.add_key_binding(opt.addSubtitle, "add_subtitle_zenity", addSubtitle)
 -- We won't add keybindings for these, but we do want to be able to use them
-mp.add_key_binding(nil, "append_url_zenity", addURL)
-mp.add_key_binding(nil, "open_url_zenity", openURL)
-mp.add_key_binding(nil, "open_playlist_zenity", openPlaylist)
-mp.add_key_binding(nil, "add_audio_zenity", addAudio)
+mp.add_key_binding(opt.addURL, "append_url_zenity", addURL)
+mp.add_key_binding(opt.openURL, "open_url_zenity", openURL)
+mp.add_key_binding(opt.openPlaylist, "open_playlist_zenity", openPlaylist)
+mp.add_key_binding(opt.addAudio, "add_audio_zenity", addAudio)
