@@ -80,7 +80,7 @@ Note that the changes to the values here only affect the menu, not the values fo
 
 For those wishing to change the menu items or add/remove menu items, the following should help, though looking at the code directly will be best. It's best if you know some Lua to make changes here.
 
-#### Menu Layout
+### Menu Layout
 
 The menu layouts use what Lua calls tables, though you could also think of them as arrays (I certainly do).
 
@@ -165,7 +165,7 @@ The **CASCADE** item is special in that the third value in the table for a casca
 
 In the above example, the cascade will have the `play_menu` table as a sub-menu coming off of it. There is a maximum of 6 total menu levels, including the base, making for up to 5 sub-menu levels deep. Any more than that will throw an error, which also prevents infinite recursion in the menu building function.
 
-#### Function call/in-line function
+### Function call/in-line function
 
 Apart from the separator, the menu items can make use of a function call:
 
@@ -189,9 +189,13 @@ When the Lua code is being executed (either on initially being loaded or after a
 
 One of the files included is the `langcodes.lua` which holds two tables filled with associative arrays using the 2 or 3 character long language name representations (ISO 639-1 and ISO 639-2) as property accessors to get full length language names, though these are only in English at this point.
 
+## Disclaimer
+
+I have tried to test this on a variety of media files and have attempted to deal with any bugs that have arisen, but I can't guarantee that this is bug-free. There may be use-cases I haven't considered or some functions may throw errors from unexpected values/input.
+
 ## Credits
 
-For some ins
+Thanks go out to the following people:
 
 * avih for the [original Tcl/Tk context menu](https://gist.github.com/avih/bee746200b5712220b8bd2f230e535de) upon which this menu has been built
 * ntasos for some code and ideas from the [KDialog-open-files](https://gist.github.com/ntasos/d1d846abd7d25e4e83a78d22ee067a22) script
