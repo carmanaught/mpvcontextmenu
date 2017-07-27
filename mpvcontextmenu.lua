@@ -21,7 +21,7 @@
  * - Put mpvcontextmenu.lua (this file) and mpvcontextmenu.tcl along with langcodes.lua
  *   and zenity-dialogs.lua in the mpv scripts dir.
  * - Add a key/mouse binding at input.conf, e.g. "MOUSE_BTN2 script_message mpv_context_menu"
- * - Once it works, configure the context_menu items below to your liking.
+ * - Once it works, configure the menuList items below to your liking.
  *
  * 2017-02-02 - Version 0.1 - Initial version (avih)
  * 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
@@ -422,7 +422,7 @@ end
 
 --[[ ************ CONFIG: start ************ ]]--
 
-local context_menu = {}
+local menuList = {}
 
 -- Format for object arrays
 -- {Item Type, Label, Accelerator, Command, Item State, Item Disable}
@@ -441,13 +441,15 @@ local context_menu = {}
 
 -- This is to be shown when nothing is open yet and is a small subset of the greater menu that
 -- will be overwritten when the full menu is created.
-context_menu = {
-    {CASCADE, "Open", "open_menu", "", "", false},
-    {SEP},
-    {CASCADE, "Window", "window_menu", "", "", false},
-    {SEP},
-    {COMMAND, "Dismiss Menu", "", noop, "", false},
-    {COMMAND, "Quit", "", "quit", "", false},
+menuList = {
+    context_menu = {
+        {CASCADE, "Open", "open_menu", "", "", false},
+        {SEP},
+        {CASCADE, "Window", "window_menu", "", "", false},
+        {SEP},
+        {COMMAND, "Dismiss Menu", "", noop, "", false},
+        {COMMAND, "Quit", "", "quit", "", false},
+    },
     
     open_menu = {
         {COMMAND, "File", "Ctrl+F", "script-binding add_files_zenity", "", false},
@@ -480,19 +482,21 @@ context_menu = {
 -- the file has been loaded.
 
 mp.register_event("file-loaded", function()
-    context_menu = {
-        {CASCADE, "Open", "open_menu", "", "", false},
-        {SEP},
-        {CASCADE, "Play", "play_menu", "", "", false},
-        {CASCADE, "Video", "video_menu", "", "", false},
-        {CASCADE, "Audio", "audio_menu", "", "", false},
-        {CASCADE, "Subtitle", "subtitle_menu", "", "", false},
-        {SEP},
-        {CASCADE, "Tools", "tools_menu", "", "", false},
-        {CASCADE, "Window", "window_menu", "", "", false},
-        {SEP},
-        {COMMAND, "Dismiss Menu", "", noop, "", false},
-        {COMMAND, "Quit", "", "quit", "", false},
+    menuList = {
+        context_menu = {
+            {CASCADE, "Open", "open_menu", "", "", false},
+            {SEP},
+            {CASCADE, "Play", "play_menu", "", "", false},
+            {CASCADE, "Video", "video_menu", "", "", false},
+            {CASCADE, "Audio", "audio_menu", "", "", false},
+            {CASCADE, "Subtitle", "subtitle_menu", "", "", false},
+            {SEP},
+            {CASCADE, "Tools", "tools_menu", "", "", false},
+            {CASCADE, "Window", "window_menu", "", "", false},
+            {SEP},
+            {COMMAND, "Dismiss Menu", "", noop, "", false},
+            {COMMAND, "Quit", "", "quit", "", false},
+        },
         
         open_menu = {
             {COMMAND, "File", "Ctrl+F", "script-binding add_files_zenity", "", false},
@@ -810,18 +814,10 @@ mp.register_event("file-loaded", function()
     }
     
     -- This check ensures that all tables of data without SEP in them are 6 items long.
-    for key, value in pairs(context_menu) do
-        if (type(key) == "number") then
-            for i = 1, #context_menu do
-                if (context_menu[i][1] ~= SEP) then
-                    if (#context_menu[i] ~= 6) then  mpdebug("Menu item at index of " .. i .. " is " .. #context_menu .. "items long") end
-                end
-            end
-        else
-            for i = 1, #value do
-                if (value[i][1] ~= SEP) then
-                    if (#value[i] ~= 6) then mpdebug("Menu item at index of " .. i .. " is " .. #value[i] .. " items long for: " .. key) end
-                end
+    for key, value in pairs(menuList) do
+        for i = 1, #value do
+            if (value[i][1] ~= SEP) then
+                if (#value[i] ~= 6) then mpdebug("Menu item at index of " .. i .. " is " .. #value[i] .. " items long for: " .. key) end
             end
         end
     end
@@ -835,16 +831,17 @@ local menuscript = mp.find_config_file("scripts/mpvcontextmenu.tcl")
 -- In addition to what's passed above, also send these (prefixed before the other items). We'll
 -- add these programattically, so no need to add items to the arrays/tables.
 --
--- Current Menu - play_menu, context_menu, etc.
+-- Current Menu - context_menu, play_menu, etc.
 -- Menu Index - This is the array/table index of the Current Menu, so we can use the Index in
--- concert with the Current Menu to get the command, e.g. context_menu["play_menu"][1][4] for
+-- concert with the menuList to get the command, e.g. menuList["play_menu"][1][4] for
 -- the command stored under the first menu item in the Play menu.
 
-local function create_menu(menu, menuName, x, y)
+local function create_menu(menuName, x, y)
     local mousepos = {}
     mousepos.x, mousepos.y = mp.get_mouse_pos()
     if (x == -1) then x = tostring(mousepos.x) end
     if (y == -1) then y = tostring(mousepos.y) end
+    
     -- For the first run, we'll send the name of the base menu after the x/y
     local args = {x, y, menuName, "", "", "", ""}
     
@@ -916,14 +913,13 @@ local function create_menu(menu, menuName, x, y)
     function buildMenu(mName, mLvl)
         if not (mLvl > 6) then
             menuNames[mLvl] = mName
-            if (mName == "context_menu") then curMenu[mLvl] = menu
-            else curMenu[mLvl] = menu[mName] end
+            curMenu[mLvl] = menuList[mName]
             
             for i = 1, #curMenu[mLvl] do
                 if (curMenu[mLvl][i][1] == CASCADE) then
                     -- Set our sub menu names and objects
                     menuNames[mLvl+1] = curMenu[mLvl][i][3]
-                    curMenu[mLvl+1] = menu[menuNames[mLvl+1]]
+                    curMenu[mLvl+1] = menuList[menuNames[mLvl+1]]
                     menuChange(menuNames)
                     -- Recurse in and build again
                     buildMenu(menuNames[mLvl+1], (mLvl + 1))
@@ -943,7 +939,7 @@ local function create_menu(menu, menuName, x, y)
             end
         else
             -- We only pass sets of seven values when changing menus, minus 1 for the initial
-            -- "menuchange" value, 1 for the context_menu, leaving 5 more, for 6 total. This
+            -- "menuchange" value, 1 for the base menu, leaving 5 more, for 6 total. This
             -- also stops infinitely recursive cascades.
             mp.osd_message("Too many menu levels. No more than 6 menu levels total.")
             stopCreate = true
@@ -983,7 +979,7 @@ local function create_menu(menu, menuName, x, y)
         return
     end
     
-    local respMenu = (response.menuname == menuName) and menu or menu[response.menuname]
+    local respMenu = menuList[response.menuname]
     local menuIndex = response.index
     local menuItem = respMenu[menuIndex]
     if (not (menuItem and menuItem[4])) then
@@ -1000,5 +996,5 @@ local function create_menu(menu, menuName, x, y)
 end
 
 mp.register_script_message("mpv_context_menu", function()
-    create_menu(context_menu, "context_menu", -1, -1)
+    create_menu("context_menu", -1, -1)
 end)

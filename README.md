@@ -26,9 +26,15 @@ To get a list of fonts available to specify the correct name for Tcl/Tk, from a 
 
     user@hostname:~$ wish
     % puts [font families]
-This should output a list of fonts enclosed by curly braces. To exit, type `exit`.
+This should output a list of fonts enclosed by curly braces, which can be used to copy the name of the desired font. To exit, type `exit`.
 
     % exit
+Set the font to be used in `mpvcontextmenu.tcl`, changing the line with `{Source Code Pro}` below in the Tcl file to whichever font is preferred and adjusting size as desired.
+
+```
+font create defFont -family {Source Code Pro} -size 9
+```
+
 Additionally the context menu uses some other mpv scripts via script-binding/script-message. These are currently:
 
 - [subit](https://github.com/wiiaboo/mpv-scripts/blob/master/subit.lua) for the "Find Subtitle (Subit)" item under "Tools"
@@ -84,14 +90,14 @@ For those wishing to change the menu items or add/remove menu items, the followi
 
 The menu layouts use what Lua calls tables, though you could also think of them as arrays (I certainly do).
 
-When the pseudo-gui is in use and there is no file playing, the layout for the menus are sets of tables nested inside an over-arching table called context_menu. This layout uses a select number of relevant options from the "while playing" menu allowing for a slightly different menu.
+When the pseudo-gui is in use and there is no file playing, the layout for the menus are sets of tables nested inside an over-arching table called menuList. This layout uses a select number of relevant options from the "while playing" menu allowing for a slightly different menu.
 
-For files that are playing, the layout for the menus are also nested inside an over-arching table called context_menu, however this is wrapped inside a function that is triggered by the "file-loaded" event in mpv (registered with `mp.register_event`). This is important as some of the values and track-list items are not available until the file has been loaded.
+For files that are playing, the layout for the menus are also nested inside an over-arching table called menuList, however this is wrapped inside a function that is triggered by the "file-loaded" event in mpv (registered with `mp.register_event`). This is important as some of the values and track-list items are not available until the file has been loaded.
 
 For both, menus, the layout is inside a table:
 
 ```lua
-context_menu = {
+menuList = {
     -- Menu items go here
 }
 ```
@@ -146,8 +152,10 @@ An example item with these in mind, could be like so:
 With all that in mind, a basic menu might look something like this (it's important to remember your commas!):
 
 ```lua
-context_menu = {
-    {CASCADE, "Play", "play_menu", "", "", false},
+menuList = {
+    context_menu = {
+        {CASCADE, "Play", "play_menu", "", "", false},
+    },
   
     play_menu = {
         {COMMAND, "Play/Pause", "Space", "cycle pause", "", false},
@@ -158,8 +166,6 @@ context_menu = {
     },
 }
 ```
-
-Note that the base menu items in the `context_menu` are not part of a key/value pair like `play_menu`. These items form the base upon which sub-menu's are added.
 
 The **CASCADE** item is special in that the third value in the table for a cascade menu item is the name of the table that should cascade from that menu item.
 

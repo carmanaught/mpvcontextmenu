@@ -19,8 +19,6 @@
 package require Tk
 font create defFont -family {Source Code Pro} -size 9
 option add *font defFont
-# This doesn't appear to do anything for the styling. Wrong command?
-ttk::style theme use clam
 
 # Remove the main window from the host window manager
 wm withdraw .
