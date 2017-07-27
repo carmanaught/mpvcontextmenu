@@ -10,6 +10,9 @@
 # 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
 # 2017-07-22 - Version 0.3 - Change accelerator label handling (right align) and adjust
 #                            changemenu check to match mpvcontextmenu.lua changes
+# 2017-07-27 - Version 0.4 - Make the menuchange parsing more dynamic to match with the
+#                            changes in mpvcontextmenu.lua
+#
 # #############################################################
 
 # Required when launching via tclsh, no-op when launching via wish
@@ -53,24 +56,26 @@ set labelPre ""
 set menuWidth 36
 set baseMenuName "context_menu"
 set first 1
+set errorVal "errorVal"
 array set maxAccel {}
+array set mVal {}
 
 # To make the accelerator appear as if they're justified to the right, we iterate through
-# the entire list and set the maximum accelerator length for each menu ($tableName) after
+# the entire list and set the maximum accelerator length for each menu ($mVal(1)) after
 # check if a value exists first, increasing the max value if the length of an item is greater.
-foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable} $argList {
-    if {$tableName != "changemenu" || $tableName != "cascade"} {
-        if {![info exists ::maxAccel($tableName)]} {
-            set ::maxAccel($tableName) [string length $itemAccel]
+foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
+    if {$mVal(1) != "changemenu" || $mVal(1) != "cascade"} {
+        if {![info exists ::maxAccel($mVal(1))]} {
+            set ::maxAccel($mVal(1)) [string length $mVal(5)]
         } else {
-        if {[string length $itemAccel] > $::maxAccel($tableName)} {
-            set ::maxAccel($tableName) [string length $itemAccel]
+        if {[string length $mVal(5)] > $::maxAccel($mVal(1))} {
+            set ::maxAccel($mVal(1)) [string length $mVal(5)]
         }
         }
     }
 }
 
-# We call this when creating the accelerator labels, passing the current menu ($tableName)
+# We call this when creating the accelerator labels, passing the current menu ($mVal(1))
 # and the accelerator, getting the max length for that menu and adding 4 spaces, then
 # appending the label after the spaces, making it appear justified to the right.
 proc makeLabel {curTable accelLabel} {
@@ -80,112 +85,121 @@ proc makeLabel {curTable accelLabel} {
     return $fullLabel
 }
 
-foreach {tableName tableIndex itemType itemLabel itemAccel itemState itemDisable} $argList {
+# The assumed values for most iterations are:
+# mVal(1) = Table Name
+# mVal(2) = Table Index
+# mVal(3) = Item Type
+# mVal(4) = Item Label
+# mVal(5) = Item Accelerator/Shortcut
+# mVal(6) = Item State (Check/Unchecked, etc)
+# mVal(7) = Item Disable (True False)
+foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
     if {$first} {
-        set pos_x $tableName
-        set pos_y $tableIndex
-        set baseMenuName $itemType
+        set pos_x $mVal(1)
+        set pos_y $mVal(2)
+        set baseMenuName $mVal(3)
         set baseMenu [menu .$baseMenuName -tearoff 0]
-        set curMenu .$itemType
-        set preMenu .$itemType
+        set curMenu .$mVal(3)
+        set preMenu .$mVal(3)
         set first 0
         continue
     }
     
-    if {$itemDisable == "false"} {
-        set itemDisable "normal"
-    } elseif {$itemDisable == "true"} {
-        set itemDisable "disabled"
-    } else {
-        set itemDisable "normal"
+    if {$mVal(1) != "changemenu"} {
+        if {$mVal(7) == "false"} {
+            set mVal(7) "normal"
+        } elseif {$mVal(7) == "true"} {
+            set mVal(7) "disabled"
+        } else {
+            set mVal(7) "normal"
+        }
     }
     
-    if {$tableName == "changemenu"} {
-        if {$itemType == ""} {
-            if {![winfo exists .$tableIndex]} {
-                menu .$tableIndex -tearoff 0
-            }
-            set curMenu .$tableIndex
-            set preMenu .$tableIndex
-        } else {
-            if {$itemLabel == ""} {
-                if {![winfo exists .$tableIndex]} { 
-                    menu .$tableIndex -tearoff 0
-                }
-                if {![winfo exists .$tableIndex.$itemType]} {
-                    menu .$tableIndex.$itemType -tearoff 0
-                }
-                set curMenu .$tableIndex.$itemType
-                set preMenu .$tableIndex
+    if {$mVal(1) == "changemenu"} {
+        set changeCount 0
+        set menuLength 0
+        set mCheck ""
+        set arrSize [array size mVal]
+        # Check how many empty values are in the list and increase the $changeCount variable to
+        # subtract that value from the size of the array of values (currently 7), giving the
+        # total number of values that have actually been passed, which is how many times we'll
+        # increment through to set our menu values.
+        for {set i 2} {$i <= $arrSize} {incr i} {
+            if {$mVal($i) == ""} { set changeCount [expr $changeCount + 1] }
+        }
+        set menuLength [expr $arrSize - $changeCount]
+        # We're going to assume that the right-most value that isn't "" of the foreach variables
+        # when doing a menu change is the highest level of menu and that there's been no gaps of
+        # "" values (which there shouldn't be).
+        for {set i 2} {$i <= $menuLength} {incr i} {
+            if {$i == 2} {
+                set mCheck .$mVal($i)
+                set preMenu $mCheck
+                set curMenu $mCheck
             } else {
-                if {![winfo exists .$tableIndex]} {
-                    menu .$tableIndex -tearoff 0
-                }
-                if {![winfo exists .$tableIndex.$itemType]} {
-                    menu .$tableIndex.$itemType -tearoff 0
-                }
-                if {![winfo exists .$tableIndex.$itemType.$itemLabel]} {
-                    menu .$tableIndex.$itemType.$itemLabel -tearoff 0
-                }
-                set curMenu .$tableIndex.$itemType.$itemLabel
-                set preMenu .$tableIndex.$itemType
+                set preMenu $mCheck
+                set mCheck $mCheck.$mVal($i)
+                set curMenu $mCheck
+            }
+            if {![winfo exists $mCheck]} {
+                menu $mCheck -tearoff 0
             }
         }
         continue
     }
 
-    if {$tableName == "cascade"} {
+    if {$mVal(1) == "cascade"} {
         # Reverse the $curMenu and $preMenu here so that the menu so that it attaches in the
         # correct order.
-        $preMenu add cascade -label $emptyPre$tableIndex -state $itemDisable -menu $curMenu
+        $preMenu add cascade -label $emptyPre$mVal(2) -state $mVal(7) -menu $curMenu
         continue
     }
     
-    if {$itemType == "separator"} {
+    if {$mVal(3) == "separator"} {
         $curMenu add separator
         continue
     }
     
-    if {$itemType == "command"} {
-        $curMenu add command -label $emptyPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+    if {$mVal(3) == "command"} {
+        $curMenu add command -label $emptyPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
         continue
     }
     
     # For checkbutton/radiobutton I'll just add command items for now, until I can get the
     # theming to work right and show the buttons based on a specified theme.
     
-    if {$itemType == "checkbutton"} {
-        if {$itemState == "true"} {
+    if {$mVal(3) == "checkbutton"} {
+        if {$mVal(6) == "true"} {
             set labelPre $boxCheck
         } else {
             set labelPre $boxUncheck
         }
         
-        $curMenu add command -label $labelPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
         continue
     }
     
-    if {$itemType == "radiobutton"} {
-        if {$itemState == "true"} {
+    if {$mVal(3) == "radiobutton"} {
+        if {$mVal(6) == "true"} {
             set labelPre $radioSelect
         } else {
             set labelPre $radioEmpty
         }
         
-        $curMenu add command -label $labelPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
         continue
     }
     
-    if {$itemType == "ab-button"} {
-        if {$itemState == "a"} {
+    if {$mVal(3) == "ab-button"} {
+        if {$mVal(6) == "a"} {
             set labelPre $boxA
-        } elseif {$itemState == "b"} {
+        } elseif {$mVal(6) == "b"} {
             set labelPre $boxB
-        } elseif {$itemState == "off"} {
+        } elseif {$mVal(6) == "off"} {
             set labelPre $boxUncheck
         }
         
-        $curMenu add command -label $labelPre$itemLabel -accel [makeLabel $tableName $itemAccel] -state $itemDisable -command "done $tableName $tableIndex"
+        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
         continue
     }
 }
@@ -196,8 +210,8 @@ if {$pos_x == -1 && $pos_y == -1} {
     set pos_y [winfo pointery .]
 }
 
-proc done {menuName index} {
-    puts -nonewline "{\"menuname\":\"$menuName\", \"index\":\"$index\"}"
+proc done {menuName index errorValue} {
+    puts -nonewline "{\"menuname\":\"$menuName\", \"index\":\"$index\", \"errorvalue\":\"$errorValue\"}"
     exit
 }
 
@@ -205,7 +219,7 @@ proc done {menuName index} {
 # before the menu command is executed and _a_sync to it. Therefore we wait a bit to
 # allow the menu command to execute first (and exit), and if it didn't, we exit here.
 proc cancelled {} {
-    after 100 {done $baseMenuName $::RESP_CANCEL}
+    after 100 {done $baseMenuName $::RESP_CANCEL $::errorVal}
 }
 
 # Calculate the menu position relative to the Tk window

@@ -14,8 +14,9 @@
 -- by specifying script bindings below or in input.conf
 -- 
 utils = require "mp.utils"
-require "mp.options"
 
+-- Set options
+require "mp.options"
 local opt = {
     -- Standard keybindings
     addFiles = "Ctrl+f",
