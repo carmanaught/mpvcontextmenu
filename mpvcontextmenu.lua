@@ -35,7 +35,7 @@
  ***************************************************************
 --]]
 
-local langcodes = require "langcodes"
+require "langcodes"
 local utils = require 'mp.utils'
 local verbose = false  -- true -> Dump console messages also without -v
 function info(x) mp.msg[verbose and "info" or "verbose"](x) end
@@ -44,7 +44,7 @@ function noop() end
 local propNative = mp.get_property_native
 
 -- Set options
-require 'mp.options'
+local options = require 'mp.options'
 local opt = {
     -- Play > Speed - Percentage
     playSpeed = 5,
@@ -71,7 +71,7 @@ local opt = {
     -- Subtitle > Sync
     subSync = 100, -- Milliseconds
 }
-read_options(opt)
+options.read_options(opt)
 
 -- Set some constant values
 local SEP = "separator"
@@ -81,7 +81,7 @@ local CHECK = "checkbutton"
 local RADIO = "radiobutton"
 local AB = "ab-button"
 
-function round(num, numDecimalPlaces)
+local function round(num, numDecimalPlaces)
   return tonumber(string.format("%." .. (numDecimalPlaces or 0) .. "f", num))
 end
 
@@ -154,7 +154,7 @@ end
 
 -- Track type count function to iterate through the track-list and get the number of
 -- tracks of the type specified. Types are:  video / audio / sub. This actually
--- returns an array of track numbers of the given type so that the track-list/N/
+-- returns a table of track numbers of the given type so that the track-list/N/
 -- properties can be obtained.
 
 local function trackCount(checkType)
@@ -365,15 +365,34 @@ end
 -- Mute label
 local function muteLabel() return propNative("mute") and "Un-mute" or "Mute" end
 
+-- Based on "mpv --audio-channels=help", reordered/renamed in part as per Bomi
+local audio_channels = { {"Auto", "auto"}, {"Auto (Safe)", "auto-safe"}, {"Empty", "empty"}, {"Mono", "mono"}, {"Stereo", "stereo"}, {"2.1ch", "2.1"}, {"3.0ch", "3.0"}, {"3.0ch (Back)", "3.0(back)"}, {"3.1ch", "3.1"}, {"3.1ch (Back)", "3.1(back)"}, {"4.0ch", "quad"}, {"4.0ch (Side)", "quad(side)"}, {"4.0ch (Diamond)", "4.0"}, {"4.1ch", "4.1(alsa)"}, {"4.1ch (Diamond)", "4.1"}, {"5.0ch", "5.0(alsa)"}, {"5.0ch (Alt.)", "5.0"}, {"5.0ch (Side)", "5.0(side)"}, {"5.1ch", "5.1(alsa)"}, {"5.1ch (Alt.)", "5.1"}, {"5.1ch (Side)", "5.1(side)"}, {"6.0ch", "6.0"}, {"6.0ch (Front)", "6.0(front)"}, {"6.0ch (Hexagonal)", "hexagonal"}, {"6.1ch", "6.1"}, {"6.1ch (Top)", "6.1(top)"}, {"6.1ch (Back)", "6.1(back)"}, {"6.1ch (Front)", "6.1(front)"}, {"7.0ch", "7.0"}, {"7.0ch (Back)", "7.0(rear)"}, {"7.0ch (Front)", "7.0(front)"}, {"7.1ch", "7.1(alsa)"}, {"7.1ch (Alt.)", "7.1"}, {"7.1ch (Wide)", "7.1(wide)"}, {"7.1ch (Side)", "7.1(wide-side)"}, {"7.1ch (Back)", "7.1(rear)"}, {"8.0ch (Octagonal)", "octagonal"} }
+
+-- Create audio key/value pairs to check against the native property
+-- e.g. audio_pair["2.1"] = "2.1", etc.
+local audio_pair = {}
+for i = 1, #audio_channels do
+    audio_pair[audio_channels[i][2]] = audio_channels[i][2]
+end
+
+-- Audio channel layout radio item check
 local function stateAudChannel(audVal)
     local audState, audLayout = false, propNative("audio-channels")
-    -- Audio channel layout radio item check
-    -- Based on "mpv --audio-channels=help", reordered/renamed in part as per Bomi, intended
-    -- to be accessed via (audio_channels(layout) = propNative(audio-channels)) and true or false
-    local audio_channels = { ["auto"] = "auto", ["auto-safe"] = "auto-safe",  ["empty"] = "empty", ["mono"] = "mono", ["stereo"] = "stereo", ["2.1"] = "2.1", ["3.0"] = "3.0", ["3.0(back)"] = "3.0(back)", ["3.1"] = "3.1", ["3.1(back)"] = "3.1(back)", ["quad"] = "quad", ["quad(side)"] = "quad(side)", ["4.0"] = "4.0", ["4.1(alsa)"] = "4.1(alsa)", ["4.1"] = "4.1", ["5.0(alsa)"] = "5.0(alsa)", ["5.0"] = "5.0", ["5.0(side)"] = "5.0(side)", ["5.1(alsa)"] = "5.1(alsa)", ["5.1"] = "5.1", ["5.1(side)"] = "5.1(side)", ["6.0"] = "6.0", ["6.0(front)"] = "6.0(front)", ["hexagonal"] = "hexagonal", ["6.1"] = "6.1", ["6.1(top)"] = "6.1(top)", ["6.1(back)"] = "6.1(back)", ["6.1(front)"] = "6.1(front)", ["7.0(front)"] = "7.0(front)", ["7.0(rear)"] = "7.0(rear)", ["7.0(front)"] = "7.0(front)", ["7.1(alsa)"] = "7.1(alsa)", ["7.1"] = "7.1", ["7.1(wide)"] = "7.1(wide)", ["7.1(wide-side)"] = "7.1(wide-side)", ["7.1(rear)"] = "7.1(rear)", ["octagonal"] = "octagonal" }
     
-    audState = (audio_channels[audVal] == audLayout) and true or false
+    audState = (audio_pair[audVal] == audLayout) and true or false
     return audState
+end
+
+-- Audio channel layout menu creation
+local function audLayoutMenu()
+    local audLayoutMenuVal = {}
+    
+    for i = 1, #audio_channels do
+        if (i == 3) then table.insert(audLayoutMenuVal, {SEP}) end
+        table.insert(audLayoutMenuVal, {RADIO, audio_channels[i][1], "", "set audio-channels \"" .. audio_channels[i][2] .. "\"", function() return stateAudChannel(audio_channels[i][2]) end, false})
+    end
+    
+    return audLayoutMenuVal
 end
 
 -- Subtitle Alignment radio item check
@@ -404,7 +423,7 @@ local function movePlaylist(direction)
         if not (playlistPos == playlistCount) then
             newPos = playlistPos + 2
             mp.commandv("plalist-move", playlistPos, newPos)
-        else mp.osd_message("Can't move item up any further") end
+        else mp.osd_message("Can't move item down any further") end
     end
 end
 
@@ -424,7 +443,7 @@ end
 
 local menuList = {}
 
--- Format for object arrays
+-- Format for object tables
 -- {Item Type, Label, Accelerator, Command, Item State, Item Disable}
 
 -- Item Type - The type of item, e.g. CASCADE, COMMAND, CHECK, RADIO, etc
@@ -550,7 +569,7 @@ mp.register_event("file-loaded", function()
             {COMMAND, "Next Subtitle", "", "no-osd sub-seek 1", "", false},
         },
         
-        -- Use functions returning arrays/tables, since we don't need these menus if there
+        -- Use functions returning tables, since we don't need these menus if there
         -- aren't any editions or any chapters to seek through.
         edition_menu = editionMenu(),
         chapter_menu = chapterMenu(),
@@ -684,46 +703,7 @@ mp.register_event("file-loaded", function()
             {COMMAND, "-" .. opt.audVol.. "%", "Shift+Down", "add volume -" .. opt.audVol, "", false},
         },
         
-        channel_layout = {
-            {RADIO, "Auto", "", "set audio-channels \"\"", function() return stateAudChannel("auto") end, false},
-            {RADIO, "Auto (Safe)", "", "set audio-channels \"\"", function() return stateAudChannel("auto-safe") end, false},
-            {SEP},
-            {RADIO, "Empty", "", "set audio-channels \"empty\"", function() return stateAudChannel("empty") end, false},
-            {RADIO, "Mono", "", "set audio-channels \"mono\"", function() return stateAudChannel("mono") end, false},
-            {RADIO, "Stereo", "", "set audio-channels \"stereo\"", function() return stateAudChannel("stereo") end, false},
-            {RADIO, "2.1ch", "", "set audio-channels \"2.1\"", function() return stateAudChannel("2.1") end, false},
-            {RADIO, "3.0ch", "", "set audio-channels \"3.0\"", function() return stateAudChannel("3.0") end, false},
-            {RADIO, "3.0ch (Back)", "", "set audio-channels \"3.0(back)\"", function() return stateAudChannel("3.0(back)") end, false},
-            {RADIO, "3.1ch", "", "set audio-channels \"3.1\"", function() return stateAudChannel("3.1") end, false},
-            {RADIO, "3.1ch (Back)", "", "set audio-channels \"3.1(back)\"", function() return stateAudChannel("3.1(back)") end, false},
-            {RADIO, "4.0ch", "", "set audio-channels \"quad\"", function() return stateAudChannel("quad") end, false},
-            {RADIO, "4.0ch (Side)", "", "set audio-channels \"quad(side)\"", function() return stateAudChannel("quad(side)") end, false},
-            {RADIO, "4.0ch (Diamond)", "", "set audio-channels \"4.0\"", function() return stateAudChannel("4.0") end, false},
-            {RADIO, "4.1ch", "", "set audio-channels \"4.1(alsa)\"", function() return stateAudChannel("4.1(alsa)") end, false},
-            {RADIO, "4.1ch (Diamond)", "", "set audio-channels \"4.1\"", function() return stateAudChannel("4.1") end, false},
-            {RADIO, "5.0ch", "", "set audio-channels \"5.0(alsa)\"", function() return stateAudChannel("5.0(alsa)") end, false},
-            {RADIO, "5.0ch (Alt.)", "", "set audio-channels \"5.0\"", function() return stateAudChannel("5.0") end, false},
-            {RADIO, "5.0ch (Side)", "", "set audio-channels \"5.0(side)\"", function() return stateAudChannel("5.0(side)") end, false},
-            {RADIO, "5.1ch", "", "set audio-channels \"5.1(alsa)\"", function() return stateAudChannel("5.1(alsa)") end, false},
-            {RADIO, "5.1ch (Alt.)", "", "set audio-channels \"5.1\"", function() return stateAudChannel("5.1") end, false},
-            {RADIO, "5.1ch (Side)", "", "set audio-channels \"5.1(side)\"", function() return stateAudChannel("5.1(side)") end, false},
-            {RADIO, "6.0ch", "", "set audio-channels \"6.0\"", function() return stateAudChannel("6.0") end, false},
-            {RADIO, "6.0ch (Front)", "", "set audio-channels \"6.0(front)\"", function() return stateAudChannel("6.0(front)") end, false},
-            {RADIO, "6.0ch (Hexagonal)", "", "set audio-channels \"hexagonal\"", function() return stateAudChannel("hexagonal") end, false},
-            {RADIO, "6.1ch", "", "set audio-channels \"6.1\"", function() return stateAudChannel("6.1") end, false},
-            {RADIO, "6.1ch (Top)", "", "set audio-channels \"6.1(top)\"", function() return stateAudChannel("6.1(top)") end, false},
-            {RADIO, "6.1ch (Back)", "", "set audio-channels \"6.1(back)\"", function() return stateAudChannel("6.1(back)") end, false},
-            {RADIO, "6.1ch (Front)", "", "set audio-channels \"6.1(front)\"", function() return stateAudChannel("6.1(front)") end, false},
-            {RADIO, "7.0ch", "", "set audio-channels \"7.0\"", function() return stateAudChannel("7.0") end, false},
-            {RADIO, "7.0ch (Back)", "", "set audio-channels \"7.0(rear)\"", function() return stateAudChannel("7.0(rear)") end, false},
-            {RADIO, "7.0ch (Front)", "", "set audio-channels \"7.0(front)\"", function() return stateAudChannel("7.0(front)") end, false},
-            {RADIO, "7.1ch", "", "set audio-channels \"7.1(alsa)\"", function() return stateAudChannel("7.1(alsa)") end, false},
-            {RADIO, "7.1ch (Alt.)", "", "set audio-channels \"7.1\"", function() return stateAudChannel("7.1") end, false},
-            {RADIO, "7.1ch (Wide)", "", "set audio-channels \"7.1(wide)\"", function() return stateAudChannel("7.1(wide)") end, false},
-            {RADIO, "7.1ch (Side)", "", "set audio-channels \"7.1(wide-side)\"", function() return stateAudChannel("7.1(wide-side)") end, false},
-            {RADIO, "7.1ch (Back)", "", "set audio-channels \"7.1(rear)\"", function() return stateAudChannel("7.1(rear)") end, false},
-            {RADIO, "8.0ch (Octagonal)", "", "set audio-channels \"octagonal\"", function() return stateAudChannel("octagonal") end, false},
-        },
+        channel_layout = audLayoutMenu(),
         
         subtitle_menu = {
             {CASCADE, "Track", "subtrack_menu", "", "", false},
@@ -829,10 +809,10 @@ local menuscript = mp.find_config_file("scripts/mpvcontextmenu.tcl")
 --[[ ************ CONFIG: end ************ ]]--
 
 -- In addition to what's passed above, also send these (prefixed before the other items). We'll
--- add these programattically, so no need to add items to the arrays/tables.
+-- add these programattically, so no need to add items to the tables.
 --
 -- Current Menu - context_menu, play_menu, etc.
--- Menu Index - This is the array/table index of the Current Menu, so we can use the Index in
+-- Menu Index - This is the table index of the Current Menu, so we can use the Index in
 -- concert with the menuList to get the command, e.g. menuList["play_menu"][1][4] for
 -- the command stored under the first menu item in the Play menu.
 
@@ -917,9 +897,10 @@ local function create_menu(menuName, x, y)
             
             for i = 1, #curMenu[mLvl] do
                 if (curMenu[mLvl][i][1] == CASCADE) then
-                    -- Set our sub menu names and objects
+                    -- Set sub menu names and objects
                     menuNames[mLvl+1] = curMenu[mLvl][i][3]
                     curMenu[mLvl+1] = menuList[menuNames[mLvl+1]]
+                    -- Change menu to the sub-menu
                     menuChange(menuNames)
                     -- Recurse in and build again
                     buildMenu(menuNames[mLvl+1], (mLvl + 1))
@@ -946,7 +927,8 @@ local function create_menu(menuName, x, y)
             do return end
         end
     end
-
+    
+    -- Build the menu using the menu name provided to the function
     buildMenu(menuName, 1)
     
     -- Stop building the menu if there was an issue with too many menu levels since it'll just
