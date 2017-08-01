@@ -108,7 +108,7 @@ local function editionMenu()
             if not (editionTitle) then editionTitle = "Edition " .. (editionNum + 1) end
             
             local editionCommand = "set edition " .. editionNum
-            table.insert(editionMenuVal, {RADIO, editionTitle, "", editionCommand, function() return checkEdition(editionNum) end, false})
+            table.insert(editionMenuVal, {RADIO, editionTitle, "", editionCommand, function() return checkEdition(editionNum) end, false, true})
         end
     else
         table.insert(editionMenuVal, {COMMAND, "No Editions", "", "", "", true})
@@ -135,8 +135,8 @@ local function chapterMenu()
     local chapterMenuVal = {}
     
     chapterMenuVal = {
-        {COMMAND, "Previous", "PgUp", "no-osd add chapter -1", "", false},
-        {COMMAND, "Next", "PgDown", "no-osd add chapter 1", "", false},
+        {COMMAND, "Previous", "PgUp", "no-osd add chapter -1", "", false, true},
+        {COMMAND, "Next", "PgDown", "no-osd add chapter 1", "", false, true},
     }
     if not (chapterCount == 0) then
         for chapterNum=0, (chapterCount - 1), 1 do
@@ -145,7 +145,7 @@ local function chapterMenu()
             
             local chapterCommand = "set chapter " .. chapterNum
             if (chapterNum == 0) then table.insert(chapterMenuVal, {SEP}) end
-            table.insert(chapterMenuVal, {RADIO, chapterTitle, "", chapterCommand, function() return checkChapter(chapterNum) end, false})
+            table.insert(chapterMenuVal, {RADIO, chapterTitle, "", chapterCommand, function() return checkChapter(chapterNum) end, false, true})
         end
     end
     
@@ -199,7 +199,7 @@ local function vidTrackMenu()
             if not (vidTrackTitle) then vidTrackTitle = "Video Track " .. i end
             
             local vidTrackCommand = "set vid " .. vidTrackID
-            table.insert(vidTrackMenuVal, {RADIO, vidTrackTitle, "", vidTrackCommand, function() return checkTrack(vidTrackNum) end, false})
+            table.insert(vidTrackMenuVal, {RADIO, vidTrackTitle, "", vidTrackCommand, function() return checkTrack(vidTrackNum) end, false, true})
         end
     else
         table.insert(vidTrackMenuVal, {RADIO, "No Video Tracks", "", "", "", true})
@@ -227,7 +227,7 @@ local function audTrackMenu()
          {COMMAND, "Reload File", "", "audio-reload", "", false},
          {COMMAND, "Remove", "", "audio-remove", "", false},
          {SEP},
-         {COMMAND, "Select Next", "Ctrl+A", "cycle audio", "", false},
+         {COMMAND, "Select Next", "Ctrl+A", "cycle audio", "", false, true},
     }
     if not (#audTrackCount == 0) then
         for i = 1, (#audTrackCount), 1 do
@@ -247,7 +247,7 @@ local function audTrackMenu()
                 table.insert(audTrackMenuVal, {COMMAND, "Select None", "", "set aid 0", "", false})
                 table.insert(audTrackMenuVal, {SEP})
             end
-            table.insert(audTrackMenuVal, {RADIO, audTrackTitle, "", audTrackCommand, function() return checkTrack(audTrackNum) end, false})
+            table.insert(audTrackMenuVal, {RADIO, audTrackTitle, "", audTrackCommand, function() return checkTrack(audTrackNum) end, false, true})
         end
     end
     
@@ -267,9 +267,9 @@ local function subTrackMenu()
         {COMMAND, "Reload File", "", "sub-reload", "", false},
         {COMMAND, "Clear File", "", "sub-remove", "", false},
         {SEP},
-        {COMMAND, "Select Next", "Shift+N", "cycle sub", "", false},
-        {COMMAND, "Select Previous", "Ctrl+Shift+N", "cycle sub down", "", false},
-        {CHECK, function() return subVisLabel() end, "V", "cycle sub-visibility", function() return not propNative("sub-visibility") end, false},
+        {COMMAND, "Select Next", "Shift+N", "cycle sub", "", false, true},
+        {COMMAND, "Select Previous", "Ctrl+Shift+N", "cycle sub down", "", false, true},
+        {CHECK, function() return subVisLabel() end, "V", "cycle sub-visibility", function() return not propNative("sub-visibility") end, false, true},
     }
     if not (#subTrackCount == 0) then
         for i = 1, (#subTrackCount), 1 do
@@ -286,10 +286,11 @@ local function subTrackMenu()
             
             local subTrackCommand = "set sid " .. subTrackID
             if (i == 1) then
-                table.insert(subTrackMenuVal, {COMMAND, "Select None", "", "set sid 0", "", false})
+                table.insert(subTrackMenuVal, {SEP})
+                table.insert(subTrackMenuVal, {COMMAND, "Select None", "", "set sid 0", "", false, true})
                 table.insert(subTrackMenuVal, {SEP})
             end
-            table.insert(subTrackMenuVal, {RADIO, subTrackTitle, "", subTrackCommand, function() return checkTrack(subTrackNum) end, false})
+            table.insert(subTrackMenuVal, {RADIO, subTrackTitle, "", subTrackCommand, function() return checkTrack(subTrackNum) end, false, true})
         end
     end
     
@@ -389,7 +390,7 @@ local function audLayoutMenu()
     
     for i = 1, #audio_channels do
         if (i == 3) then table.insert(audLayoutMenuVal, {SEP}) end
-        table.insert(audLayoutMenuVal, {RADIO, audio_channels[i][1], "", "set audio-channels \"" .. audio_channels[i][2] .. "\"", function() return stateAudChannel(audio_channels[i][2]) end, false})
+        table.insert(audLayoutMenuVal, {RADIO, audio_channels[i][1], "", "set audio-channels \"" .. audio_channels[i][2] .. "\"", function() return stateAudChannel(audio_channels[i][2]) end, false, true})
     end
     
     return audLayoutMenuVal
@@ -478,20 +479,20 @@ menuList = {
     
     window_menu = {
         {CASCADE, "Stays on Top", "staysontop_menu", "", "", false},
-        {CHECK, "Remove Frame", "", "cycle border", function() return not propNative("border") end, false},
+        {CHECK, "Remove Frame", "", "cycle border", function() return not propNative("border") end, false, true},
         {SEP},
-        {COMMAND, "Toggle Fullscreen", "F", "cycle fullscreen", "", false},
-        {COMMAND, "Enter Fullscreen", "", "set fullscreen \"yes\"", "", false},
-        {COMMAND, "Exit Fullscreen", "Escape", "set fullscreen \"no\"", "", false},
+        {COMMAND, "Toggle Fullscreen", "F", "cycle fullscreen", "", false, true},
+        {COMMAND, "Enter Fullscreen", "", "set fullscreen \"yes\"", "", false, true},
+        {COMMAND, "Exit Fullscreen", "Escape", "set fullscreen \"no\"", "", false, true},
         {SEP},
         {COMMAND, "Close", "Ctrl+W", "quit", "", false},
     },
     
     staysontop_menu = {
-        {COMMAND, "Select Next", "", "cycle ontop", "", false},
+        {COMMAND, "Select Next", "", "cycle ontop", "", false, true},
         {SEP},
-        {RADIO, "Off", "", "set ontop \"yes\"", function() return stateOnTop(false) end, false},
-        {RADIO, "On", "", "set ontop \"no\"", function() return stateOnTop(true) end, false},
+        {RADIO, "Off", "", "set ontop \"yes\"", function() return stateOnTop(false) end, false, true},
+        {RADIO, "On", "", "set ontop \"no\"", function() return stateOnTop(true) end, false, true},
     }, 
 }
 
@@ -524,11 +525,11 @@ mp.register_event("file-loaded", function()
         },
         
         play_menu = {
-            {COMMAND, "Play/Pause", "Space", "cycle pause", "", false},
+            {COMMAND, "Play/Pause", "Space", "cycle pause", "", false, true},
             {COMMAND, "Stop", "Ctrl+Space", "stop", "", false},
             {SEP},
-            {COMMAND, "Previous", "<", "playlist-prev", "", false},
-            {COMMAND, "Next", ">", "playlist-next", "", false},
+            {COMMAND, "Previous", "<", "playlist-prev", "", false, true},
+            {COMMAND, "Next", ">", "playlist-next", "", false, true},
             {SEP},
             {CASCADE, "Speed", "speed_menu", "", "", false},
             {CASCADE, "A-B Repeat", "abrepeat_menu", "", "", false},
@@ -539,34 +540,34 @@ mp.register_event("file-loaded", function()
         },
         
         speed_menu = {
-            {COMMAND, "Reset", "Backspace", "no-osd set speed 1.0 ; show-text \"Play Speed - Reset\"", "", false},
+            {COMMAND, "Reset", "Backspace", "no-osd set speed 1.0 ; show-text \"Play Speed - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "+" .. opt.playSpeed .. "%", "=", "multiply speed " .. (1 + (opt.playSpeed / 100)), "", false},
-            {COMMAND, "-" .. opt.playSpeed .. "%", "-", "multiply speed " .. (1 - (opt.playSpeed / 100)), "", false},
+            {COMMAND, "+" .. opt.playSpeed .. "%", "=", "multiply speed " .. (1 + (opt.playSpeed / 100)), "", false, true},
+            {COMMAND, "-" .. opt.playSpeed .. "%", "-", "multiply speed " .. (1 - (opt.playSpeed / 100)), "", false, true},
         },
         
         abrepeat_menu = {
-            {AB, "Set/Clear A-B Loop", "R", "ab-loop", function() return stateABLoop() end, false},
-            {CHECK, "Toggle Infinite Loop", "", "cycle-values loop-file \"inf\" \"no\"", propNative("loop-file"), false},
+            {AB, "Set/Clear A-B Loop", "R", "ab-loop", function() return stateABLoop() end, false, true},
+            {CHECK, "Toggle Infinite Loop", "", "cycle-values loop-file \"inf\" \"no\"", propNative("loop-file"), false, true},
         },
         
         seek_menu = {
-            {COMMAND, "Beginning", "Ctrl+Home", "no-osd seek 0 absolute", "", false},
+            {COMMAND, "Beginning", "Ctrl+Home", "no-osd seek 0 absolute", "", false, true},
             {SEP},
-            {COMMAND, "+" .. opt.seekSmall .. " Sec", "Right", "no-osd seek " .. opt.seekSmall, "", false},
-            {COMMAND, "-" .. opt.seekSmall .. " Sec", "Left", "no-osd seek -" .. opt.seekSmall, "", false},
-            {COMMAND, "+" .. opt.seekMedium .. " Sec", "Up", "no-osd seek " .. opt.seekMedium, "", false},
-            {COMMAND, "-" .. opt.seekMedium .. " Sec", "Down", "no-osd seek -" .. opt.seekMedium, "", false},
-            {COMMAND, "+" .. opt.seekLarge .. " Sec", "End", "no-osd seek " .. opt.seekLarge, "", false},
-            {COMMAND, "-" .. opt.seekLarge .. " Sec", "Home", "no-osd seek -" .. opt.seekLarge, "", false},
+            {COMMAND, "+" .. opt.seekSmall .. " Sec", "Right", "no-osd seek " .. opt.seekSmall, "", false, true},
+            {COMMAND, "-" .. opt.seekSmall .. " Sec", "Left", "no-osd seek -" .. opt.seekSmall, "", false, true},
+            {COMMAND, "+" .. opt.seekMedium .. " Sec", "Up", "no-osd seek " .. opt.seekMedium, "", false, true},
+            {COMMAND, "-" .. opt.seekMedium .. " Sec", "Down", "no-osd seek -" .. opt.seekMedium, "", false, true},
+            {COMMAND, "+" .. opt.seekLarge .. " Sec", "End", "no-osd seek " .. opt.seekLarge, "", false, true},
+            {COMMAND, "-" .. opt.seekLarge .. " Sec", "Home", "no-osd seek -" .. opt.seekLarge, "", false, true},
             {SEP},
-            {COMMAND, "Previous Frame", "Alt+Left", "frame-back-step", "", false},
-            {COMMAND, "Next Frame", "Alt+Right", "frame-step", "", false},
-            {COMMAND, "Next Black Frame", "Alt+b", "script-binding skip_scene", "", false},
+            {COMMAND, "Previous Frame", "Alt+Left", "frame-back-step", "", false, true},
+            {COMMAND, "Next Frame", "Alt+Right", "frame-step", "", false, true},
+            {COMMAND, "Next Black Frame", "Alt+b", "script-binding skip_scene", "", false, true},
             {SEP},
-            {COMMAND, "Previous Subtitle", "", "no-osd sub-seek -1", "", false},
-            {COMMAND, "Current Subtitle", "", "no-osd sub-seek 0", "", false},
-            {COMMAND, "Next Subtitle", "", "no-osd sub-seek 1", "", false},
+            {COMMAND, "Previous Subtitle", "", "no-osd sub-seek -1", "", false, true},
+            {COMMAND, "Current Subtitle", "", "no-osd sub-seek 0", "", false, true},
+            {COMMAND, "Next Subtitle", "", "no-osd sub-seek 1", "", false, true},
         },
         
         -- Use functions returning tables, since we don't need these menus if there
@@ -600,82 +601,82 @@ mp.register_event("file-loaded", function()
         },
         
         aspect_menu = {
-            {COMMAND, "Reset", "Ctrl+Shift+R", "no-osd set video-aspect \"-1\" ; no-osd set video-aspect \"-1\" ; show-text \"Video Aspect Ratio - Reset\"", "", false},
-            {COMMAND, "Select Next", "", "cycle-values video-aspect \"4:3\" \"16:10\" \"16:9\" \"1.85:1\" \"2.35:1\" \"-1\" \"-1\"", "", false},
+            {COMMAND, "Reset", "Ctrl+Shift+R", "no-osd set video-aspect \"-1\" ; no-osd set video-aspect \"-1\" ; show-text \"Video Aspect Ratio - Reset\"", "", false, true},
+            {COMMAND, "Select Next", "", "cycle-values video-aspect \"4:3\" \"16:10\" \"16:9\" \"1.85:1\" \"2.35:1\" \"-1\" \"-1\"", "", false, true},
             {SEP},
-            {RADIO, "4:3 (TV)", "", "set video-aspect \"4:3\"", function() return stateRatio("4:3") end, false},
-            {RADIO, "16:10 (Wide Monitor)", "", "set video-aspect \"16:10\"", function() return stateRatio("16:10") end, false},
-            {RADIO, "16:9 (HDTV)", "", "set video-aspect \"16:9\"", function() return stateRatio("16:9") end, false},
-            {RADIO, "1.85:1 (Wide Vision)", "", "set video-aspect \"1.85:1\"", function() return stateRatio("1.85:1") end, false},
-            {RADIO, "2.35:1 (CinemaScope)", "", "set video-aspect \"2.35:1\"", function() return stateRatio("2.35:1") end, false},
+            {RADIO, "4:3 (TV)", "", "set video-aspect \"4:3\"", function() return stateRatio("4:3") end, false, true},
+            {RADIO, "16:10 (Wide Monitor)", "", "set video-aspect \"16:10\"", function() return stateRatio("16:10") end, false, true},
+            {RADIO, "16:9 (HDTV)", "", "set video-aspect \"16:9\"", function() return stateRatio("16:9") end, false, true},
+            {RADIO, "1.85:1 (Wide Vision)", "", "set video-aspect \"1.85:1\"", function() return stateRatio("1.85:1") end, false, true},
+            {RADIO, "2.35:1 (CinemaScope)", "", "set video-aspect \"2.35:1\"", function() return stateRatio("2.35:1") end, false, true},
             {SEP},
-            {COMMAND, "+" .. opt.vidAspect .. "%", "Ctrl+Shift+A", "add video-aspect " .. (opt.vidAspect / 100), "", false},
-            {COMMAND, "-" .. opt.vidAspect .. "%", "Ctrl+Shift+D", "add video-aspect -" .. (opt.vidAspect / 100), "", false},
+            {COMMAND, "+" .. opt.vidAspect .. "%", "Ctrl+Shift+A", "add video-aspect " .. (opt.vidAspect / 100), "", false, true},
+            {COMMAND, "-" .. opt.vidAspect .. "%", "Ctrl+Shift+D", "add video-aspect -" .. (opt.vidAspect / 100), "", false, true},
         },
         
         zoom_menu = {
-            {COMMAND, "Reset", "Shift+R", "no-osd set panscan 0 ; show-text \"Pan/Scan - Reset\"", "", false},
+            {COMMAND, "Reset", "Shift+R", "no-osd set panscan 0 ; show-text \"Pan/Scan - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "+" .. opt.vidZoom .. "%", "Shift+T", "add panscan " .. (opt.vidZoom / 100), "", false},
-            {COMMAND, "-" .. opt.vidZoom .. "%", "Shift+G", "add panscan -" .. (opt.vidZoom / 100), "", false},
+            {COMMAND, "+" .. opt.vidZoom .. "%", "Shift+T", "add panscan " .. (opt.vidZoom / 100), "", false, true},
+            {COMMAND, "-" .. opt.vidZoom .. "%", "Shift+G", "add panscan -" .. (opt.vidZoom / 100), "", false, true},
         },
         
         rotate_menu = {
-            {COMMAND, "Reset", "", "set video-rotate \"0\"", "", false},
-            {COMMAND, "Select Next", "", "cycle-values video-rotate \"0\" \"90\" \"180\" \"270\"", "", false},
+            {COMMAND, "Reset", "", "set video-rotate \"0\"", "", false, true},
+            {COMMAND, "Select Next", "", "cycle-values video-rotate \"0\" \"90\" \"180\" \"270\"", "", false, true},
             {SEP},
-            {RADIO, "0°", "", "set video-rotate \"0\"", function() return stateRotate(0) end, false},
-            {RADIO, "90°", "", "set video-rotate \"90\"", function() return stateRotate(90) end, false},
-            {RADIO, "180°", "", "set video-rotate \"180\"", function() return stateRotate(180) end, false},
-            {RADIO, "270°", "", "set video-rotate \"270\"", function() return stateRotate(270) end, false},
+            {RADIO, "0°", "", "set video-rotate \"0\"", function() return stateRotate(0) end, false, true},
+            {RADIO, "90°", "", "set video-rotate \"90\"", function() return stateRotate(90) end, false, true},
+            {RADIO, "180°", "", "set video-rotate \"180\"", function() return stateRotate(180) end, false, true},
+            {RADIO, "270°", "", "set video-rotate \"270\"", function() return stateRotate(270) end, false, true},
         },
         
         screenpos_menu = {
-            {COMMAND, "Reset", "Shift+X", "no-osd set video-pan-x 0 ; no-osd set video-pan-y 0 ; show-text \"Video Pan - Reset\"", "", false},
+            {COMMAND, "Reset", "Shift+X", "no-osd set video-pan-x 0 ; no-osd set video-pan-y 0 ; show-text \"Video Pan - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "Horizontally +" .. opt.vidPos .. "%", "Shift+D", "add video-pan-x " .. (opt.vidPos / 100), "", false},
-            {COMMAND, "Horizontally -" .. opt.vidPos .. "%", "Shift+A", "add video-pan-x -" .. (opt.vidPos / 100), "", false},
+            {COMMAND, "Horizontally +" .. opt.vidPos .. "%", "Shift+D", "add video-pan-x " .. (opt.vidPos / 100), "", false, true},
+            {COMMAND, "Horizontally -" .. opt.vidPos .. "%", "Shift+A", "add video-pan-x -" .. (opt.vidPos / 100), "", false, true},
             {SEP},
-            {COMMAND, "Vertically +" .. opt.vidPos .. "%", "Shift+S", "add video-pan-y -" .. (opt.vidPos / 100), "", false},
-            {COMMAND, "Vertically -" .. opt.vidPos .. "%", "Shift+W", "add video-pan-y " .. (opt.vidPos / 100), "", false},
+            {COMMAND, "Vertically +" .. opt.vidPos .. "%", "Shift+S", "add video-pan-y -" .. (opt.vidPos / 100), "", false, true},
+            {COMMAND, "Vertically -" .. opt.vidPos .. "%", "Shift+W", "add video-pan-y " .. (opt.vidPos / 100), "", false, true},
         },
         
         screenalign_menu = {
             -- Y Values: -1 = Top, 0 = Vertical Center, 1 = Bottom
             -- X Values: -1 = Left, 0 = Horizontal Center, 1 = Right
-            {RADIO, "Top", "", "no-osd set video-align-y -1", function() return stateAlign("y",-1) end, false},
-            {RADIO, "Vertical Center", "", "no-osd set video-align-y 0", function() return stateAlign("y",0) end, false},
-            {RADIO, "Bottom", "", "no-osd set video-align-y 1", function() return stateAlign("y",1) end, false},
+            {RADIO, "Top", "", "no-osd set video-align-y -1", function() return stateAlign("y",-1) end, false, true},
+            {RADIO, "Vertical Center", "", "no-osd set video-align-y 0", function() return stateAlign("y",0) end, false, true},
+            {RADIO, "Bottom", "", "no-osd set video-align-y 1", function() return stateAlign("y",1) end, false, true},
             {SEP},
-            {RADIO, "Left", "", "no-osd set video-align-x -1", function() return stateAlign("x",-1) end, false},
-            {RADIO, "Horizontal Center", "", "no-osd set video-align-x 0", function() return stateAlign("x",0) end, false},
-            {RADIO, "Right", "", "no-osd set video-align-x 1", function() return stateAlign("x",1) end, false},
+            {RADIO, "Left", "", "no-osd set video-align-x -1", function() return stateAlign("x",-1) end, false, true},
+            {RADIO, "Horizontal Center", "", "no-osd set video-align-x 0", function() return stateAlign("x",0) end, false, true},
+            {RADIO, "Right", "", "no-osd set video-align-x 1", function() return stateAlign("x",1) end, false, true},
         },
         
         deint_menu = {
-            {COMMAND, "Toggle", "Ctrl+D", "cycle deinterlace", "", false},
-            {COMMAND, "Auto", "", "set deinterlace \"auto\"", "", false},
+            {COMMAND, "Toggle", "Ctrl+D", "cycle deinterlace", "", false, true},
+            {COMMAND, "Auto", "", "set deinterlace \"auto\"", "", false, true},
             {SEP},
-            {RADIO, "Off", "", "no-osd set deinterlace \"no\"", function() return stateDeInt(false) end, false},
-            {RADIO, "On", "", "no-osd set deinterlace \"yes\"", function() return stateDeInt(true) end, false},
+            {RADIO, "Off", "", "no-osd set deinterlace \"no\"", function() return stateDeInt(false) end, false, true},
+            {RADIO, "On", "", "no-osd set deinterlace \"yes\"", function() return stateDeInt(true) end, false, true},
         },
         
         filter_menu = {
-            {CHECK, "Flip Vertically", "", "no-osd vf toggle vflip", function() return stateFlip("vflip") end, false},
-            {CHECK, "Flip Horizontally", "", "no-osd vf toggle hflip", function() return stateFlip("hflip") end, false}
+            {CHECK, "Flip Vertically", "", "no-osd vf toggle vflip", function() return stateFlip("vflip") end, false, true},
+            {CHECK, "Flip Horizontally", "", "no-osd vf toggle hflip", function() return stateFlip("hflip") end, false, true}
         },
         
         color_menu = {
-            {COMMAND, "Reset", "O", "no-osd set brightness 0 ; no-osd set contrast 0 ; no-osd set hue 0 ; no-osd set saturation 0 ; show-text \"Colors - Reset\"", "", false},
+            {COMMAND, "Reset", "O", "no-osd set brightness 0 ; no-osd set contrast 0 ; no-osd set hue 0 ; no-osd set saturation 0 ; show-text \"Colors - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "Brightness +" .. opt.vidColor .. "%", "T", "add brightness " .. opt.vidColor, "", false},
-            {COMMAND, "Brightness -" .. opt.vidColor .. "%", "G", "add brightness -" .. opt.vidColor, "", false},
-            {COMMAND, "Contrast +" .. opt.vidColor .. "%", "Y", "add contrast " .. opt.vidColor, "", false},
-            {COMMAND, "Contrast -" .. opt.vidColor .. "%", "H", "add contrast -" .. opt.vidColor, "", false},
-            {COMMAND, "Saturation +" .. opt.vidColor .. "%", "U", "add saturation " .. opt.vidColor, "", false},
-            {COMMAND, "Saturation -" .. opt.vidColor .. "%", "J", "add saturation -" .. opt.vidColor, "", false},
-            {COMMAND, "Hue +" .. opt.vidColor .. "%", "I", "add hue " .. opt.vidColor, "", false},
-            {COMMAND, "Hue -" .. opt.vidColor .. "%", "K", "add hue -" .. opt.vidColor, "", false},
+            {COMMAND, "Brightness +" .. opt.vidColor .. "%", "T", "add brightness " .. opt.vidColor, "", false, true},
+            {COMMAND, "Brightness -" .. opt.vidColor .. "%", "G", "add brightness -" .. opt.vidColor, "", false, true},
+            {COMMAND, "Contrast +" .. opt.vidColor .. "%", "Y", "add contrast " .. opt.vidColor, "", false, true},
+            {COMMAND, "Contrast -" .. opt.vidColor .. "%", "H", "add contrast -" .. opt.vidColor, "", false, true},
+            {COMMAND, "Saturation +" .. opt.vidColor .. "%", "U", "add saturation " .. opt.vidColor, "", false, true},
+            {COMMAND, "Saturation -" .. opt.vidColor .. "%", "J", "add saturation -" .. opt.vidColor, "", false, true},
+            {COMMAND, "Hue +" .. opt.vidColor .. "%", "I", "add hue " .. opt.vidColor, "", false, true},
+            {COMMAND, "Hue -" .. opt.vidColor .. "%", "K", "add hue -" .. opt.vidColor, "", false, true},
         },
         
         audio_menu = {
@@ -690,17 +691,17 @@ mp.register_event("file-loaded", function()
         audtrack_menu = audTrackMenu(),
         
         audsync_menu = {
-            {COMMAND, "Reset", "\\", "no-osd set audio-delay 0 ; show-text \"Audio Sync - Reset\"", "", false},
+            {COMMAND, "Reset", "\\", "no-osd set audio-delay 0 ; show-text \"Audio Sync - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "+" .. opt.audSync .. " ms", "]", "add audio-delay " .. (opt.audSync / 1000) .. "", "", false},
-            {COMMAND, "-" .. opt.audSync .. " ms", "[", "add audio-delay -" .. (opt.audSync / 1000) .. "", "", false},
+            {COMMAND, "+" .. opt.audSync .. " ms", "]", "add audio-delay " .. (opt.audSync / 1000) .. "", "", false, true},
+            {COMMAND, "-" .. opt.audSync .. " ms", "[", "add audio-delay -" .. (opt.audSync / 1000) .. "", "", false, true},
         },
         
         volume_menu = {
-            {CHECK, function() return muteLabel() end, "", "cycle mute", function() return propNative("mute") end, false},
+            {CHECK, function() return muteLabel() end, "", "cycle mute", function() return propNative("mute") end, false, true},
             {SEP},
-            {COMMAND, "+" .. opt.audVol.. "%", "Shift+Up", "add volume " .. opt.audVol, "", false},
-            {COMMAND, "-" .. opt.audVol.. "%", "Shift+Down", "add volume -" .. opt.audVol, "", false},
+            {COMMAND, "+" .. opt.audVol.. "%", "Shift+Up", "add volume " .. opt.audVol, "", false, true},
+            {COMMAND, "-" .. opt.audVol.. "%", "Shift+Down", "add volume -" .. opt.audVol, "", false, true},
         },
         
         channel_layout = audLayoutMenu(),
@@ -719,44 +720,44 @@ mp.register_event("file-loaded", function()
         subtrack_menu = subTrackMenu(),
         
         subalign_menu = {
-            {COMMAND, "Select Next", "", "cycle-values sub-align-y \"top\" \"bottom\"", "", false},
+            {COMMAND, "Select Next", "", "cycle-values sub-align-y \"top\" \"bottom\"", "", false, true},
             {SEP},
-            {RADIO, "Top", "", "set sub-align-y \"top\"", function() return stateSubAlign("top") end, false},
-            {RADIO, "Bottom", "","set sub-align-y \"bottom\"", function() return stateSubAlign("bottom") end, false},
+            {RADIO, "Top", "", "set sub-align-y \"top\"", function() return stateSubAlign("top") end, false, true},
+            {RADIO, "Bottom", "","set sub-align-y \"bottom\"", function() return stateSubAlign("bottom") end, false, true},
         },
         
         subpos_menu = {
-            {COMMAND, "Reset", "Alt+S", "no-osd set sub-pos 100 ; no-osd set sub-scale 1 ; show-text \"Subtitle Position - Reset\"", "", false},
+            {COMMAND, "Reset", "Alt+S", "no-osd set sub-pos 100 ; no-osd set sub-scale 1 ; show-text \"Subtitle Position - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "+" .. opt.subPos .. "%", "S", "add sub-pos " .. opt.subPos, "", false},
-            {COMMAND, "-" .. opt.subPos .. "%", "W", "add sub-pos -" .. opt.subPos, "", false},
+            {COMMAND, "+" .. opt.subPos .. "%", "S", "add sub-pos " .. opt.subPos, "", false, true},
+            {COMMAND, "-" .. opt.subPos .. "%", "W", "add sub-pos -" .. opt.subPos, "", false, true},
             {SEP},
-            {RADIO, "Display on Letterbox", "", "set image-subs-video-resolution \"no\"", function() return stateSubPos(false) end, false},
-            {RADIO, "Display in Video", "", "set image-subs-video-resolution \"yes\"", function() return stateSubPos(true) end, false},
+            {RADIO, "Display on Letterbox", "", "set image-subs-video-resolution \"no\"", function() return stateSubPos(false) end, false, true},
+            {RADIO, "Display in Video", "", "set image-subs-video-resolution \"yes\"", function() return stateSubPos(true) end, false, true},
         },
         
         subscale_menu = {
-            {COMMAND, "Reset", "", "no-osd set sub-pos 100 ; no-osd set sub-scale 1 ; show-text \"Subtitle Position - Reset\"", "", false},
+            {COMMAND, "Reset", "", "no-osd set sub-pos 100 ; no-osd set sub-scale 1 ; show-text \"Subtitle Position - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "+" .. opt.subScale .. "%", "Shift+L", "add sub-scale " .. (opt.subScale / 100), "", false},
-            {COMMAND, "-" .. opt.subScale .. "%", "Shift+K", "add sub-scale -" .. (opt.subScale / 100), "", false},
+            {COMMAND, "+" .. opt.subScale .. "%", "Shift+K", "add sub-scale " .. (opt.subScale / 100), "", false, true},
+            {COMMAND, "-" .. opt.subScale .. "%", "Shift+J", "add sub-scale -" .. (opt.subScale / 100), "", false, true},
         },
         
         subsync_menu = {
-            {COMMAND, "Reset", "Q", "no-osd set sub-delay 0 ; show-text \"Subtitle Delay - Reset\"", "", false},
+            {COMMAND, "Reset", "Q", "no-osd set sub-delay 0 ; show-text \"Subtitle Delay - Reset\"", "", false, true},
             {SEP},
-            {COMMAND, "+" .. opt.subSync .. " ms", "D", "add sub-delay +" .. (opt.subSync / 1000) .. "", "", false},
-            {COMMAND, "-" .. opt.subSync .. " ms", "A", "add sub-delay -" .. (opt.subSync / 1000) .. "", "", false},
+            {COMMAND, "+" .. opt.subSync .. " ms", "D", "add sub-delay +" .. (opt.subSync / 1000) .. "", "", false, true},
+            {COMMAND, "-" .. opt.subSync .. " ms", "A", "add sub-delay -" .. (opt.subSync / 1000) .. "", "", false, true},
         },
         
         tools_menu = {
             {CASCADE, "Playlist", "playlist_menu", "", "", false},
             {COMMAND, "Find Subtitle (Subit)", "", "script-binding subit", "", false},
-            {COMMAND, "Playback Information", "Tab", "script-binding display-stats-toggle", "", false},
+            {COMMAND, "Playback Information", "Tab", "script-binding display-stats-toggle", "", false, true},
         },
         
         playlist_menu = {
-            {COMMAND, "Show", "l", "script-binding showplaylist", "", false},
+            {COMMAND, "Show", "L", "script-binding showplaylist", "", false},
             {SEP},
             {COMMAND, "Open", "", "script-binding open_playlist_zenity", "", false},
             {COMMAND, "Save", "", "script-binding saveplaylist", "", false},
@@ -765,31 +766,31 @@ mp.register_event("file-loaded", function()
             {SEP},
             {COMMAND, "Append File", "", "script-binding append_files_zenity", "", false},
             {COMMAND, "Append URL", "", "script_binding append_url_zenity", "", false},
-            {COMMAND, "Remove", "", "playlist-remove current", "", false},
+            {COMMAND, "Remove", "", "playlist-remove current", "", false, true},
             {SEP},
-            {COMMAND, "Move Up", "", function() movePlaylist("up") end, "", function() return (propNative("playlist-count") < 2) and true or false end},
-            {COMMAND, "Move Down", "", function() movePlaylist("down") end, "", function() return (propNative("playlist-count") < 2) and true or false end},
+            {COMMAND, "Move Up", "", function() movePlaylist("up") end, "", function() return (propNative("playlist-count") < 2) and true or false end, true},
+            {COMMAND, "Move Down", "", function() movePlaylist("down") end, "", function() return (propNative("playlist-count") < 2) and true or false end, true},
             {SEP},
-            {CHECK, "Shuffle", "", "cycle shuffle", function() return propNative("shuffle") end, false},
-            {CHECK, "Repeat", "", "cycle-values loop-playlist \"inf\" \"no\"", function() return stateLoop() end, false},
+            {CHECK, "Shuffle", "", "cycle shuffle", function() return propNative("shuffle") end, false, true},
+            {CHECK, "Repeat", "", "cycle-values loop-playlist \"inf\" \"no\"", function() return stateLoop() end, false, true},
         },
         
         window_menu = {
             {CASCADE, "Stays on Top", "staysontop_menu", "", "", false},
-            {CHECK, "Remove Frame", "", "cycle border", function() return not propNative("border") end, false},
+            {CHECK, "Remove Frame", "", "cycle border", function() return not propNative("border") end, false, true},
             {SEP},
-            {COMMAND, "Toggle Fullscreen", "", "cycle fullscreen", "", false},
-            {COMMAND, "Enter Fullscreen", "", "set fullscreen \"no\"", "", false},
-            {COMMAND, "Exit Fullscreen", "", "set fullscreen \"yes\"", "", false},
+            {COMMAND, "Toggle Fullscreen", "", "cycle fullscreen", "", false, true},
+            {COMMAND, "Enter Fullscreen", "", "set fullscreen \"no\"", "", false, true},
+            {COMMAND, "Exit Fullscreen", "", "set fullscreen \"yes\"", "", false, true},
             {SEP},
             {COMMAND, "Close", "Ctrl+W", "quit", "", false},
         },
         
         staysontop_menu = {
-            {COMMAND, "Select Next", "", "cycle ontop", "", false},
+            {COMMAND, "Select Next", "", "cycle ontop", "", false, true},
             {SEP},
-            {RADIO, "Off", "", "set ontop \"yes\"", function() return stateOnTop(false) end, false},
-            {RADIO, "On", "", "set ontop \"no\"", function() return stateOnTop(true) end, false},
+            {RADIO, "Off", "", "set ontop \"yes\"", function() return stateOnTop(false) end, false, true},
+            {RADIO, "On", "", "set ontop \"no\"", function() return stateOnTop(true) end, false, true},
         },        
     }
     
@@ -797,7 +798,7 @@ mp.register_event("file-loaded", function()
     for key, value in pairs(menuList) do
         for i = 1, #value do
             if (value[i][1] ~= SEP) then
-                if (#value[i] ~= 6) then mpdebug("Menu item at index of " .. i .. " is " .. #value[i] .. " items long for: " .. key) end
+                if (#value[i] < 6 or #value[i] > 7) then mpdebug("Menu item at index of " .. i .. " is " .. #value[i] .. " items long for: " .. key) end
             end
         end
     end
@@ -816,14 +817,17 @@ local menuscript = mp.find_config_file("scripts/mpvcontextmenu.tcl")
 -- concert with the menuList to get the command, e.g. menuList["play_menu"][1][4] for
 -- the command stored under the first menu item in the Play menu.
 
-local function create_menu(menuName, x, y)
+local function create_menu(menuName, x, y, menuPaths, menuIndexes)
     local mousepos = {}
     mousepos.x, mousepos.y = mp.get_mouse_pos()
     if (x == -1) then x = tostring(mousepos.x) end
     if (y == -1) then y = tostring(mousepos.y) end
-    
+    menuPaths = (menuPaths ~= nil) and tostring(menuPaths) or ""
+    menuIndexes = (menuIndexes ~= nil) and tostring(menuIndexes) or ""
     -- For the first run, we'll send the name of the base menu after the x/y
-    local args = {x, y, menuName, "", "", "", ""}
+    -- and any menu paths and menu indexes if there are any (used to re'post'
+    -- a menu).
+    local args = {x, y, menuName, menuPaths, menuIndexes, "", ""}
     
     -- We use this function to make sure we get the values from functions, etc.
     local function argType(argVal)
@@ -853,7 +857,9 @@ local function create_menu(menuName, x, y)
                     args[#args+1] = argList[i]
                 end
             else
-                if not (i == 4) then args[#args+1] = argType(argList[i]) end
+                if not (i == 4) then
+                    if not (i == 7) then args[#args+1] = argType(argList[i]) end
+                end
             end
         end
     end
@@ -951,11 +957,14 @@ local function create_menu(menuName, x, y)
         mp.osd_message("Possible error in mpvcontextmenu.tcl")
         return
     end
-
+    
     info("ret: " .. retVal.stdout)
     local response = utils.parse_json(retVal.stdout)
+    response.x = tonumber(response.x)
+    response.y = tonumber(response.y)
     response.menuname = tostring(response.menuname)
     response.index = tonumber(response.index)
+    response.menupath = tostring(response.menupath)
     if (response.index == -1) then
         info("Context menu cancelled")
         return
@@ -968,12 +977,60 @@ local function create_menu(menuName, x, y)
         mp.msg.error("Unknown menu item index: " .. tostring(response.index))
         return
     end
-
+    
     -- Run the command
     if (type(menuItem[4]) == "string") then
         mp.command(menuItem[4])
     else
         menuItem[4]()
+    end
+    
+    -- Re'post' the menu if there's a seventh menu item and it's true.
+    if (menuItem[7]) then
+        if (menuItem[7] ~= "boolean") then
+            rebuildMenu = (menuItem[7] == true) and true or false
+        end
+        
+        if (rebuildMenu == true) then
+            -- Figure out the menu indexes based on the path and send as args to re'post' the menu
+            menuPaths = ""
+            menuIndexes = ""
+            local pathList = {}
+            local idx = 1
+            for path in string.gmatch(response.menupath, "[^%.]+") do
+                pathList[idx] = path
+                idx = idx + 1
+            end
+            
+            idx = 1
+            -- Iterate through the menus and build the index values
+            for i = 1, (#pathList - 1) do
+                for pathInd = 1, i do
+                    menuPaths = menuPaths .. "." .. pathList[pathInd]
+                end
+                if not (i == (#pathList - 1)) then
+                    menuPaths = menuPaths .. "?"
+                end
+                menuFind = menuList[pathList[i]]
+                for subi = 1, (#menuFind) do
+                    if (menuFind[subi][1] == CASCADE) then
+                        if (menuFind[subi][3] == pathList[i+1]) then
+                            -- The indexes for using the postcascade in Tcl are 0-based
+                            menuIndexes = menuIndexes .. (subi - 1)
+                            if not (i == (#pathList - 1)) then
+                                menuIndexes = menuIndexes .. "?"
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Break direct recursion with async, stack overflow can come quick.
+            -- Also allow to un-congest the events queue.
+            mp.add_timeout(0, function() create_menu("context_menu", x, y, menuPaths, menuIndexes) end)
+        else
+            mpdebug("There's a problem with the menu rebuild value")
+        end
     end
 end
 

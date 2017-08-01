@@ -54,6 +54,9 @@ set labelPre ""
 set menuWidth 36
 set baseMenuName "context_menu"
 set first 1
+set postMenu "false"
+set postMenus ""
+set postIndexes ""
 set errorVal "errorVal"
 array set maxAccel {}
 array set mVal {}
@@ -99,6 +102,11 @@ foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
         set baseMenu [menu .$baseMenuName -tearoff 0]
         set curMenu .$mVal(3)
         set preMenu .$mVal(3)
+        if {$mVal(4) != ""} {
+            set postMenu "true"
+            set postMenus $mVal(4)
+            set postIndexes $mVal(5)
+        }
         set first 0
         continue
     }
@@ -159,7 +167,7 @@ foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
     }
     
     if {$mVal(3) == "command"} {
-        $curMenu add command -label $emptyPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
+        $curMenu add command -label $emptyPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $curMenu $errorVal"
         continue
     }
     
@@ -173,7 +181,7 @@ foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
             set labelPre $boxUncheck
         }
         
-        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
+        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $curMenu $errorVal"
         continue
     }
     
@@ -184,7 +192,7 @@ foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
             set labelPre $radioEmpty
         }
         
-        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
+        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $curMenu $errorVal"
         continue
     }
     
@@ -197,7 +205,7 @@ foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
             set labelPre $boxUncheck
         }
         
-        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $errorVal"
+        $curMenu add command -label $labelPre$mVal(4) -accel [makeLabel $mVal(1) $mVal(5)] -state $mVal(7) -command "done $mVal(1) $mVal(2) $curMenu $errorVal"
         continue
     }
 }
@@ -208,8 +216,8 @@ if {$pos_x == -1 && $pos_y == -1} {
     set pos_y [winfo pointery .]
 }
 
-proc done {menuName index errorValue} {
-    puts -nonewline "{\"menuname\":\"$menuName\", \"index\":\"$index\", \"errorvalue\":\"$errorValue\"}"
+proc done {menuName index menuPath errorValue} {
+    puts -nonewline "{\"x\":\"$::pos_x\", \"y\":\"$::pos_y\", \"menuname\":\"$menuName\", \"index\":\"$index\", \"menupath\":\"$menuPath\", \"errorvalue\":\"$errorValue\"}"
     exit
 }
 
@@ -217,7 +225,7 @@ proc done {menuName index errorValue} {
 # before the menu command is executed and _a_sync to it. Therefore we wait a bit to
 # allow the menu command to execute first (and exit), and if it didn't, we exit here.
 proc cancelled {} {
-    after 100 {done $baseMenuName $::RESP_CANCEL $::errorVal}
+    after 100 {done $baseMenuName $::RESP_CANCEL $baseMenuName $::errorVal}
 }
 
 # Calculate the menu position relative to the Tk window
@@ -226,6 +234,21 @@ set win_y [expr {$pos_y - [winfo rooty .]}]
 
 # Launch the popup menu
 tk_popup $baseMenu $win_x $win_y
+# Use after idle and check if the 'post' menu check is true and do a postcascade on the
+# relevant menus to have the menu pop back up, with the cascade in the same place.
+after idle {
+    if {$postMenu == "true"} {
+        set menuArgs [split $postMenus "?"]
+        set indexArgs [split $postIndexes "?"]
+        #set errorVal $menuArgs$indexArgs
+        for {set i 0} {$i < [llength $indexArgs]} {incr i} {
+            #set errorVal $errorVal[lindex $indexArgs $i]
+            [lindex $menuArgs $i] postcascade [lindex $indexArgs $i]
+        }
+    }
+}
+#after idle .context_menu postcascade 2
+#after idle .context_menu.play_menu postcascade 6
 
 # On Windows tk_popup is synchronous and so we exit when it closes, but on Linux
 # it's async and so we need to bind to the <Unmap> event (<Destroyed> or

@@ -4,7 +4,7 @@ This is a Tcl/Tk context menu forked and fairly extensively modified from [this 
 
 <img src="http://i.imgur.com/8xmOqXW.png" width="768">
 
-A lot of the code from the original menu has been rewritten. In particular, this menu adds sub-menu's using the Tcl menu cascade command. One possible downside to this is that the way in which the pseudo sub-menu worked with the original menu allowed a menu to stay on screen and be rebuilt, meaning that you could click a menu item to toggle something and have the menu stay on screen. This does not work with this menu.
+A lot of the code from the original menu has been rewritten. In particular, this menu adds sub-menu's using the Tcl menu cascade command retaining the possibility to rebuild the menu along with sub-menu's through the use of the Tcl 'postcascade command'.
 
 The menu layout is based on by the right-click menu for Bomi, which is what I was using before switching to mpv. If you were a Bomi user be aware that not all the menu items for Bomi are implemented, particularly those around video settings and there is no current plan to implement them at this point.
 
@@ -110,10 +110,10 @@ A separator is comprised of a single item and uses the variable SEP to indicate 
 {SEP},
 ```
 
-A full menu item table is comprised of six (6) items. The layout looks something like this:
+A full menu item table is comprised of at least six (6) or seven (7) items. The layout looks something like this (for all seven items):
 
 ```
-{Item Type, Label, Accelerator, Command, Item State, Item Disable},
+{Item Type, Label, Accelerator, Command, Item State, Item Disable, Menu Rebuild},
 ```
 
 Using the above as a guide, this table provides some information for what can/should be entered for each item.
@@ -126,6 +126,7 @@ Using the above as a guide, this table provides some information for what can/sh
 | Command      | The command you want to be executed when an item is clicked on. |
 | Item State   | For checkboxes and radio items, this is the selected/unselected state. |
 | Item Disable | This is set to true or false depending on whether the menu item should be clickable/usable. |
+| Menu Rebuild | Set this to true if the menu should be rebuilt and re-cascaded so that it appears in the same place with the same sub-menus open. |
 
 For **Item Type**, this should be one of the preset variable names, CASCADE, COMMAND, CHECK and RADIO respectively.
 
@@ -139,9 +140,11 @@ The best way to handle this for checkboxes or radio items is to wrap a function 
 
 The **Item Disable** item is used to enable/disable menu items and can also disable cascades from functioning. This can be useful if a menu item should be disabled when certain functionality is not available with a given file. Set this to `true` to disable the item and `false` to leave it enabled.
 
+**Menu Rebuild** is used to toggle/use a menu item, but keep the menu open to the same sub-menu. This makes it possible to have the mouse over a menu item and click the item, causing a brief flicker as the menu is essentially closed and reopened to where it was.
+
 For the **Item Label**, **Accelerator** and **Command** items, you can use string concatenation `("Text " .. var .. " Text")` as the value is evaluated at much the same time as in-line functions returning values (detailed below).
 
-All six items should be entered and empty quotes used when not specifying a value.
+At least six items should be entered and empty quotes used when not specifying a value. A seventh can be used when using the **Menu Rebuild** functionality.
 
 An example item with these in mind, could be like so:
 
