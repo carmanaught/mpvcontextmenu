@@ -795,8 +795,8 @@ end)
 
 --[[ ************ CONFIG: end ************ ]]--
 
-local menuBuilder = require 'menu-builder'
+local menuEngine = require 'menu-engine'
 
 mp.register_script_message("mpv_context_menu", function()
-    menuBuilder.createMenu(menuList, "context_menu", -1, -1, "tk")
+    menuEngine.createMenu(menuList, "context_menu", -1, -1, "tk")
 end)

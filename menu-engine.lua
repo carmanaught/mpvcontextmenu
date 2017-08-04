@@ -1,5 +1,5 @@
 --[[ *************************************************************
- * Context menu for mpv using Tcl/Tk.
+ * Context menu engine for mpv using Tcl/Tk.
  * Originally by Avi Halachmi (:avih) https://github.com/avih
  * Extended by Thomas Carmichael (carmanught) https://github.com/carmanaught
  *
@@ -36,13 +36,13 @@ local verbose = false  -- true -> Dump console messages also without -v
 local function info(x) mp.msg[verbose and "info" or "verbose"](x) end
 local function mpdebug(x) mp.msg.info(x) end -- For printing other debug without verbose
 
--- Use tables to specify the interpreter and menuscript to allow for multiple menu engines
--- along with the associated logic changes to handle them.
+-- Use tables to specify the interpreter and menuscript to allow for multiple menu
+-- builders along with the associated logic changes to handle them.
 local interpreter = {}
 local menuscript = {}
 
 interpreter["tk"] = "wish";  -- tclsh/wish/full-path
-menuscript["tk"] = mp.find_config_file("scripts/menu-engine-tk.tcl")
+menuscript["tk"] = mp.find_config_file("scripts/menu-builder-tk.tcl")
 
 -- Set some constant values. These should match what's used with the menu definitions.
 local SEP = "separator"
@@ -61,7 +61,7 @@ local AB = "ab-button"
 -- concert with the menuList to get the command, e.g. menuList["play_menu"][1][4] for
 -- the command stored under the first menu item in the Play menu.
 
-local menuEngine = ""
+local menuBuilder = ""
 
 local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
     local mousepos = {}
@@ -192,7 +192,7 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
         argList = argList .. "|" .. args[i]
     end
     
-    local cmdArgs = {interpreter[menuEngine], menuscript[menuEngine], argList}
+    local cmdArgs = {interpreter[menuBuilder], menuscript[menuBuilder], argList}
     
     local retVal = utils.subprocess({
         args = cmdArgs,
@@ -280,8 +280,8 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
     end
 end
 
-local function createMenu(menu_list, menu_name, x, y, menu_engine)
-    menuEngine = menu_engine
+local function createMenu(menu_list, menu_name, x, y, menu_builder)
+    menuBuilder = menu_builder
     doMenu(menu_list, menu_name, x, y)
 end
 

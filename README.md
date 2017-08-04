@@ -10,7 +10,7 @@ The menu layout is based on by the right-click menu for Bomi, which is what I wa
 
 Some of the menu items reference commands that use the functions/bindings in `zenity-dialogs.lua` to show dialogs. These are based on the [KDialog-open-files](https://gist.github.com/ntasos/d1d846abd7d25e4e83a78d22ee067a22) script (credit to ntasos).
 
-The menu layout definitions and the menu building have been separated. Part of this is allow for the use of other menu engines, with the logic and interactions with engines handled by the menu building script. This has the advantage that the menu-building script doesn't care about the menu definition file and actually allows multiple menu definition files to used if desired, ensuring they are configured correctly (see [Customization](#customization) below)
+The menu layout definitions and the menu engine have been separated. Part of this is allow for the use of other menu builders, with the logic and interactions with builders handled by the menu engine script. This has the advantage that the menu engine script doesn't care about the menu definition file and actually allows multiple menu definition files to used if desired, ensuring they are configured correctly (see [Customization](#customization) below).
 
 ## Requirements
 
@@ -22,7 +22,7 @@ You will need to install Tcl and Tk (for the Tk menu) and ensure that the interp
 
 Similarly, Zenity needs to be installed and accessible via the PATH or set it up manually in `zenity-dialogs.lua`. If you do not wish to use the zenity dialogs, remove the entries in the menu items referencing them.
 
-The menu uses the Source Code Pro font, which can be [found here](https://github.com/adobe-fonts/source-code-pro) (or check your repositories), however the font can be changed in the `menu-engine-tk.tcl` file. A mono-spaced font must be used for the menu items to appear correctly.
+The menu uses the Source Code Pro font, which can be [found here](https://github.com/adobe-fonts/source-code-pro) (or check your repositories), however the font can be changed in the `menu-builder-tk.tcl` file. A mono-spaced font must be used for the menu items to appear correctly.
 
 To get a list of fonts available to specify the correct name for Tcl/Tk, from a terminal run `wish` and from the wish prompt, enter `puts [font families]`.
 
@@ -31,7 +31,7 @@ To get a list of fonts available to specify the correct name for Tcl/Tk, from a 
 This should output a list of fonts enclosed by curly braces, which can be used to copy the name of the desired font. To exit, type `exit`.
 
     % exit
-Set the font to be used in `menu-engine-tk.tcl`, changing the line with `{Source Code Pro}` below in the Tcl file to whichever font is preferred and adjusting size as desired.
+Set the font to be used in `menu-builder-tk.tcl`, changing the line with `{Source Code Pro}` below in the Tcl file to whichever font is preferred and adjusting size as desired.
 
 ```
 font create defFont -family {Source Code Pro} -size 9
