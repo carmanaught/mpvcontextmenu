@@ -1,46 +1,26 @@
 --[[ *************************************************************
- * Context menu for mpv using Tcl/Tk.
- * Originally by Avi Halachmi (:avih) https://github.com/avih
- * Extended by Thomas Carmichael (carmanught) https://github.com/carmanaught
- * 
- * Features:
- * - Comprehensive sub-menus providing access to various mpv functionality
- * - Dynamic menu items and commands, disabled items, separators.
- * - Reasonably well behaved/integrated considering it's an external application.
- * - Configurable options for some values (changes visually in menu too)
- * 
+ * Menu defintions and script-message registration
+ * Thomas Carmichael (carmanught) https://github.com/carmanaught
+ *
  * TODO:
  * - Possibly look at reading keybindings from input.conf
  *
- * Setup:
- * - Make sure Tcl/Tk is installed and `wish` is accessible and works.
- *   - Alternatively, configure `interpreter` below to `tclsh`, which may work smoother.
- *   - For windows, download a zip from http://www.tcl3d.org/html/appTclkits.html
- *     extract and then rename to wish.exe and put it at the path or at the mpv.exe dir.
- *     - Or, tclsh/wish from git/msys2(mingw) works too - set `interpreter` below.
- * - Put mpvcontextmenu.lua (this file) and mpvcontextmenu.tcl along with langcodes.lua
- *   and zenity-dialogs.lua in the mpv scripts dir.
- * - Add a key/mouse binding at input.conf, e.g. "MOUSE_BTN2 script_message mpv_context_menu"
- * - Once it works, configure the menuList items below to your liking.
+ * Used in concert with menu-builder.lua to create a menu. The script-message registration
+ * and calling of the createMenu script are done from the definitions here as trying to
+ * pass the menu definitions to the menu builder with the script-message register there
+ * doesn't allow for the unloaded/loaded state to work propertly.
  *
- * 2017-02-02 - Version 0.1 - Initial version (avih)
- * 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
- * 2017-07-20 - Version 0.3 - Add/remove/update menus and include zenity bindings (carmanught)
- * 2017-07-22 - Version 0.4 - Reordered context_menu items, changed table length check, modify
- *                            menu build iterator slightly and add options (carmanaught)
- * 2017-07-27 - Version 0.5 - Added function (with recursion) to build menus (allows dynamic
- *                            menus of up to 6 levels (top level + 5 sub-menu levels)) and
- *                            add basic menu that will work when nothing is playing.
- * 
+ * Specify the menu type in the createMenu function call below. Current options are:
+ * tk
+ *
+ * 2017-08-04 - Version 0.1 - Separation of menu building from definitions.
+ *
  ***************************************************************
 --]]
 
-require "langcodes"
-local utils = require 'mp.utils'
-local verbose = false  -- true -> Dump console messages also without -v
-function info(x) mp.msg[verbose and "info" or "verbose"](x) end
-function mpdebug(x) mp.msg.info(x) end -- For printing other debug without verbose
-function noop() end
+local langcodes = require 'langcodes'
+local function mpdebug(x) mp.msg.info(x) end
+local function noop() end
 local propNative = mp.get_property_native
 
 -- Set options
@@ -213,9 +193,17 @@ end
 -- the langcodes.lua file (require "langcodes" above).
 function getLang(trackLang)
     trackLang = string.upper(trackLang)
-    if (string.len(trackLang) == 2) then trackLang = iso639_1[trackLang]
-    elseif (string.len(trackLang) == 3) then trackLang = iso639_2[trackLang] end
+    if (string.len(trackLang) == 2) then trackLang = langcodes.iso639_1(trackLang)
+    elseif (string.len(trackLang) == 3) then trackLang = langcodes.iso639_2(trackLang) end
     return trackLang
+end
+
+function noneCheck(checkType)
+    local checkVal, trackID = false, propNative(checkType)
+    if (type(trackID) == "boolean") then
+        if (trackID == false) then checkVal = true end
+    end
+    return checkVal
 end
 
 -- Audio > Track menu functions
@@ -244,7 +232,8 @@ local function audTrackMenu()
             
             local audTrackCommand = "set aid " .. audTrackID
             if (i == 1) then
-                table.insert(audTrackMenuVal, {COMMAND, "Select None", "", "set aid 0", "", false})
+                table.insert(audTrackMenuVal, {SEP})
+                table.insert(audTrackMenuVal, {RADIO, "Select None", "", "set aid 0", function() return noneCheck("aid") end, false, true})
                 table.insert(audTrackMenuVal, {SEP})
             end
             table.insert(audTrackMenuVal, {RADIO, audTrackTitle, "", audTrackCommand, function() return checkTrack(audTrackNum) end, false, true})
@@ -287,7 +276,7 @@ local function subTrackMenu()
             local subTrackCommand = "set sid " .. subTrackID
             if (i == 1) then
                 table.insert(subTrackMenuVal, {SEP})
-                table.insert(subTrackMenuVal, {COMMAND, "Select None", "", "set sid 0", "", false, true})
+                table.insert(subTrackMenuVal, {RADIO, "Select None", "", "set sid 0", function() return noneCheck("sid") end, false, true})
                 table.insert(subTrackMenuVal, {SEP})
             end
             table.insert(subTrackMenuVal, {RADIO, subTrackTitle, "", subTrackCommand, function() return checkTrack(subTrackNum) end, false, true})
@@ -804,236 +793,10 @@ mp.register_event("file-loaded", function()
     end
 end)
 
-local interpreter = "wish";  -- tclsh/wish/full-path
-local menuscript = mp.find_config_file("scripts/mpvcontextmenu.tcl")
-
 --[[ ************ CONFIG: end ************ ]]--
 
--- In addition to what's passed above, also send these (prefixed before the other items). We'll
--- add these programattically, so no need to add items to the tables.
---
--- Current Menu - context_menu, play_menu, etc.
--- Menu Index - This is the table index of the Current Menu, so we can use the Index in
--- concert with the menuList to get the command, e.g. menuList["play_menu"][1][4] for
--- the command stored under the first menu item in the Play menu.
-
-local function create_menu(menuName, x, y, menuPaths, menuIndexes)
-    local mousepos = {}
-    mousepos.x, mousepos.y = mp.get_mouse_pos()
-    if (x == -1) then x = tostring(mousepos.x) end
-    if (y == -1) then y = tostring(mousepos.y) end
-    menuPaths = (menuPaths ~= nil) and tostring(menuPaths) or ""
-    menuIndexes = (menuIndexes ~= nil) and tostring(menuIndexes) or ""
-    -- For the first run, we'll send the name of the base menu after the x/y
-    -- and any menu paths and menu indexes if there are any (used to re'post'
-    -- a menu).
-    local args = {x, y, menuName, menuPaths, menuIndexes, "", ""}
-    
-    -- We use this function to make sure we get the values from functions, etc.
-    local function argType(argVal)
-        if (type(argVal) == "function") then argVal = argVal() end
-        
-        -- Check for nil values and warn here
-        if (argVal == nil) then mpdebug ("Found a nil value") end
-        
-        if (type(argVal) == "boolean") then argVal = tostring(argVal)
-        else argval = (type(argVal) == "string") and argVal or ""
-        end
-        
-        return argVal
-    end
-    
-    -- Add general args to the list
-    local function addArgs(argList)
-        for i = 1, #argList do
-            if (i == 1) then
-                argList[i] = argType(argList[i])
-                if (argList[i] == SEP) then
-                    args[#args+1] = SEP
-                    for iter = 1, 4 do
-                        args[#args+1] = ""
-                    end
-                else
-                    args[#args+1] = argList[i]
-                end
-            else
-                if not (i == 4) then
-                    if not (i == 7) then args[#args+1] = argType(argList[i]) end
-                end
-            end
-        end
-    end
-    
-    -- Add menu change args. Since we're provided a list of menu names, we can use the length
-    -- of the table to add the args as necessary
-    local function menuChange(menuNames)
-        local emptyMenus = 6
-        args[#args+1] = "changemenu"
-        emptyMenus = emptyMenus - #menuNames
-        -- Add the menu names
-        for iter = 1, #menuNames do
-            args[#args+1] = menuNames[iter]
-        end
-        -- Add the empty values
-        for iter = 1, emptyMenus do
-            args[#args+1] = ""
-        end
-    end
-    
-    -- Add a cascade menu (the logic for attaching is done in the Tcl script)
-    local function addCascade(label, state)
-        args[#args+1] = CASCADE
-        args[#args+1] = (argType(label) ~= emptyStr) and argType(label) or ""
-        for iter = 1, 4 do
-            args[#args+1] = ""
-        end
-        args[#args+1] = (argType(state) ~= emptyStr) and argType(state) or ""
-    end
-    
-    -- Recurse through the menu's and add them with their submenu's as arguments to be sent
-    -- to the Tcl script to parse. Menu's can only be 5 levels deep. As stated, this function
-    -- is recursive and calls itself, changing and removing objects as needs be. This
-    local menuNames = {}
-    local curMenu = {}
-    local stopCreate = false
-    function buildMenu(mName, mLvl)
-        if not (mLvl > 6) then
-            menuNames[mLvl] = mName
-            curMenu[mLvl] = menuList[mName]
-            
-            for i = 1, #curMenu[mLvl] do
-                if (curMenu[mLvl][i][1] == CASCADE) then
-                    -- Set sub menu names and objects
-                    menuNames[mLvl+1] = curMenu[mLvl][i][3]
-                    curMenu[mLvl+1] = menuList[menuNames[mLvl+1]]
-                    -- Change menu to the sub-menu
-                    menuChange(menuNames)
-                    -- Recurse in and build again
-                    buildMenu(menuNames[mLvl+1], (mLvl + 1))
-                    -- Add the cascade
-                    addCascade(curMenu[mLvl][i][2], curMenu[mLvl][i][6])
-                    -- Remove the current table and menuname as we're done with that menu
-                    table.remove(curMenu, (mLvl + 1))
-                    table.remove(menuNames, (mLvl + 1))
-                    -- With the menuname removed, the count is smaller and it pulls
-                    -- us one menu back to continue from the previous menu.
-                    menuChange(menuNames)
-                else
-                    args[#args+1] = mName
-                    args[#args+1] = i
-                    addArgs(curMenu[mLvl][i])
-                end
-            end
-        else
-            -- We only pass sets of seven values when changing menus, minus 1 for the initial
-            -- "menuchange" value, 1 for the base menu, leaving 5 more, for 6 total. This
-            -- also stops infinitely recursive cascades.
-            mp.osd_message("Too many menu levels. No more than 6 menu levels total.")
-            stopCreate = true
-            do return end
-        end
-    end
-    
-    -- Build the menu using the menu name provided to the function
-    buildMenu(menuName, 1)
-    
-    -- Stop building the menu if there was an issue with too many menu levels since it'll just
-    -- cause problems
-    if (stopCreate == true) then do return end end
-    
-    local argList = args[1]
-    for i = 2, #args do
-        argList = argList .. "|" .. args[i]
-    end
-    
-    local cmdArgs = {interpreter, menuscript, argList}
-    
-    local retVal = utils.subprocess({
-        args = cmdArgs,
-        cancellable = true
-    })
-    
-    if (retVal.status ~= 0) then
-        mp.osd_message("Possible error in mpvcontextmenu.tcl")
-        return
-    end
-    
-    info("ret: " .. retVal.stdout)
-    local response = utils.parse_json(retVal.stdout)
-    response.x = tonumber(response.x)
-    response.y = tonumber(response.y)
-    response.menuname = tostring(response.menuname)
-    response.index = tonumber(response.index)
-    response.menupath = tostring(response.menupath)
-    if (response.index == -1) then
-        info("Context menu cancelled")
-        return
-    end
-    
-    local respMenu = menuList[response.menuname]
-    local menuIndex = response.index
-    local menuItem = respMenu[menuIndex]
-    if (not (menuItem and menuItem[4])) then
-        mp.msg.error("Unknown menu item index: " .. tostring(response.index))
-        return
-    end
-    
-    -- Run the command
-    if (type(menuItem[4]) == "string") then
-        mp.command(menuItem[4])
-    else
-        menuItem[4]()
-    end
-    
-    -- Re'post' the menu if there's a seventh menu item and it's true.
-    if (menuItem[7]) then
-        if (menuItem[7] ~= "boolean") then
-            rebuildMenu = (menuItem[7] == true) and true or false
-        end
-        
-        if (rebuildMenu == true) then
-            -- Figure out the menu indexes based on the path and send as args to re'post' the menu
-            menuPaths = ""
-            menuIndexes = ""
-            local pathList = {}
-            local idx = 1
-            for path in string.gmatch(response.menupath, "[^%.]+") do
-                pathList[idx] = path
-                idx = idx + 1
-            end
-            
-            idx = 1
-            -- Iterate through the menus and build the index values
-            for i = 1, (#pathList - 1) do
-                for pathInd = 1, i do
-                    menuPaths = menuPaths .. "." .. pathList[pathInd]
-                end
-                if not (i == (#pathList - 1)) then
-                    menuPaths = menuPaths .. "?"
-                end
-                menuFind = menuList[pathList[i]]
-                for subi = 1, (#menuFind) do
-                    if (menuFind[subi][1] == CASCADE) then
-                        if (menuFind[subi][3] == pathList[i+1]) then
-                            -- The indexes for using the postcascade in Tcl are 0-based
-                            menuIndexes = menuIndexes .. (subi - 1)
-                            if not (i == (#pathList - 1)) then
-                                menuIndexes = menuIndexes .. "?"
-                            end
-                        end
-                    end
-                end
-            end
-            
-            -- Break direct recursion with async, stack overflow can come quick.
-            -- Also allow to un-congest the events queue.
-            mp.add_timeout(0, function() create_menu("context_menu", x, y, menuPaths, menuIndexes) end)
-        else
-            mpdebug("There's a problem with the menu rebuild value")
-        end
-    end
-end
+local menuBuilder = require 'menu-builder'
 
 mp.register_script_message("mpv_context_menu", function()
-    create_menu("context_menu", -1, -1)
+    menuBuilder.createMenu(menuList, "context_menu", -1, -1, "tk")
 end)

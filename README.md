@@ -1,26 +1,28 @@
 # Context Menu for mpv
 
-This is a Tcl/Tk context menu forked and fairly extensively modified from [this one](https://gist.github.com/avih/bee746200b5712220b8bd2f230e535de) (credit to avih). This is an example of what it looks like in use (showing the audio Channel Layout sub-menu):
+This is a context menu forked and fairly extensively modified from [this one](https://gist.github.com/avih/bee746200b5712220b8bd2f230e535de) (credit to avih). This is an example of what the Tk menu looks like in use (showing the audio Channel Layout sub-menu):
 
 <img src="http://i.imgur.com/8xmOqXW.png" width="768">
 
-A lot of the code from the original menu has been rewritten. In particular, this menu adds sub-menu's using the Tcl menu cascade command retaining the possibility to rebuild the menu along with sub-menu's through the use of the Tcl 'postcascade command'.
+A lot of the code from the original menu has been rewritten. In particular, the Tk menu adds sub-menu's using the Tcl menu cascade command retaining the possibility to rebuild the menu along with sub-menu's through the use of the Tcl 'postcascade command'.
 
 The menu layout is based on by the right-click menu for Bomi, which is what I was using before switching to mpv. If you were a Bomi user be aware that not all the menu items for Bomi are implemented, particularly those around video settings and there is no current plan to implement them at this point.
 
 Some of the menu items reference commands that use the functions/bindings in `zenity-dialogs.lua` to show dialogs. These are based on the [KDialog-open-files](https://gist.github.com/ntasos/d1d846abd7d25e4e83a78d22ee067a22) script (credit to ntasos).
 
+The menu layout definitions and the menu building have been separated. Part of this is allow for the use of other menu engines, with the logic and interactions with engines handled by the menu building script. This has the advantage that the menu-building script doesn't care about the menu definition file and actually allows multiple menu definition files to used if desired, ensuring they are configured correctly (see [Customization](#customization) below)
+
 ## Requirements
 
-This requires **tcl**, **tk** and **zenity** installed to work.
+This currently requires **tcl**, **tk** and **zenity** installed to work.
 
-Place the `.lua` files in your `~/.config/mpv/scripts/` or `~/.mpv/scripts/` folder. The `input.conf` is not strictly necessary, but the key-bindings shown in the menu are based on those in the `input.conf` . **Note:** the key-bindings are not automatically detected and have been manually added as text to the menu, so you'll need to change/remove them if they don't match your own.
+Place the files (except for `input.conf`) in your `~/.config/mpv/scripts/` or `~/.mpv/scripts/` folder. The `input.conf` is not strictly necessary, but the key-bindings shown in the menu are based on those in the `input.conf` . **Note:** the key-bindings are not automatically detected and have been manually added as text to the menu, so you'll need to change/remove them if they don't match your own.
 
-You will need to install Tcl and Tk and ensure that the interpreter variable in `mpvcontextmenu.lua` is set properly. This can be set to `wish` or `tclsh` (set to `wish` by default) and should either be accessible via the PATH environment variable or the full path should be specified.
+You will need to install Tcl and Tk (for the Tk menu) and ensure that the interpreter variable in `mpvcontextmenu.lua` is set properly. This can be set to `wish` or `tclsh` (set to `wish` by default) and should either be accessible via the PATH environment variable or the full path should be specified.
 
 Similarly, Zenity needs to be installed and accessible via the PATH or set it up manually in `zenity-dialogs.lua`. If you do not wish to use the zenity dialogs, remove the entries in the menu items referencing them.
 
-The menu uses the Source Code Pro font, which can be [found here](https://github.com/adobe-fonts/source-code-pro) (or check your repositories), however the font can be changed in the `mpvcontextmenu.tcl` file. A mono-spaced font must be used for the menu items to appear correctly.
+The menu uses the Source Code Pro font, which can be [found here](https://github.com/adobe-fonts/source-code-pro) (or check your repositories), however the font can be changed in the `menu-engine-tk.tcl` file. A mono-spaced font must be used for the menu items to appear correctly.
 
 To get a list of fonts available to specify the correct name for Tcl/Tk, from a terminal run `wish` and from the wish prompt, enter `puts [font families]`.
 
@@ -29,7 +31,7 @@ To get a list of fonts available to specify the correct name for Tcl/Tk, from a 
 This should output a list of fonts enclosed by curly braces, which can be used to copy the name of the desired font. To exit, type `exit`.
 
     % exit
-Set the font to be used in `mpvcontextmenu.tcl`, changing the line with `{Source Code Pro}` below in the Tcl file to whichever font is preferred and adjusting size as desired.
+Set the font to be used in `menu-engine-tk.tcl`, changing the line with `{Source Code Pro}` below in the Tcl file to whichever font is preferred and adjusting size as desired.
 
 ```
 font create defFont -family {Source Code Pro} -size 9
@@ -90,9 +92,11 @@ For those wishing to change the menu items or add/remove menu items, the followi
 
 The menu layouts use what Lua calls tables, though you could also think of them as arrays (I certainly do).
 
-When the pseudo-gui is in use and there is no file playing, the layout for the menus are sets of tables nested inside an over-arching table called menuList. This layout uses a select number of relevant options from the "while playing" menu allowing for a slightly different menu.
+The layout for the menus are sets of tables nested inside an over-arching table (currently called menuList).
 
-For files that are playing, the layout for the menus are also nested inside an over-arching table called menuList, however this is wrapped inside a function that is triggered by the "file-loaded" event in mpv (registered with `mp.register_event`). This is important as some of the values and track-list items are not available until the file has been loaded.
+When the pseudo-gui is in use and there is no file playing, the layout uses a select number of relevant options from the "while playing" menu allowing for a slightly different menu.
+
+For files that are playing, the layout is wrapped inside a function that is triggered by the "file-loaded" event in mpv (registered with `mp.register_event`). This is important as some of the mpv property values like track-list items and chapter information, etc. are not available until the file has been loaded.
 
 For both, menus, the layout is inside a table:
 
