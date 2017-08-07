@@ -2,7 +2,23 @@
 
 This is a context menu forked and fairly extensively modified from [this one](https://gist.github.com/avih/bee746200b5712220b8bd2f230e535de) (credit to avih).
 
-[TOC]
+### Table of Contents
+
+* [Requirements](#requirements)
+  * [Tk](#tk)
+  * [Zenity](#zenity)
+  * [Fonts](#fonts)
+    * [Tk](#tk-1)
+    * [Gtk+](#gtk-1)
+  * [Scripts](#scripts)
+* [Usage](#usage)
+* [Configuration](#configuration)
+* [Customization](#customization)
+  * [Menu Layout](#menu-layout)
+  * [Function call/in-line function](#function-callin-line-function)
+* [Notes](#notes)
+* [Disclaimer](#disclaimer)
+* [Credits](#credits)
 
 This is an example of what the Tk (left) and Gtk+ (right) menus look like in use (showing the audio Channel Layout sub-menu):
 
