@@ -1,0 +1,295 @@
+#!/usr/bin/env gjs
+
+/*#############################################################
+# Context menu constructed via CLI args.
+# Thomas Carmichael (carmanught) https://github.com/carmanaught
+#
+# Developed for and used in conjunction with menu-engine.lua - context-menu for mpv.
+# See menu-engine.lua for more info.
+#
+# 2017-08-06 - Version 0.1 - Initial version
+#
+# #############################################################*/
+
+const Gdk = imports.gi.Gdk;
+const Gtk = imports.gi.Gtk;
+const Gio = imports.gi.Gio;
+const GLib = imports.gi.GLib
+
+const CANCEL = -1
+
+// This call is necessary to be sure that GTK3 is avaible and capable of showing some UI
+Gtk.init(null);
+
+// Get the argument list that has been passed to the script
+let argList = new Array();
+if (ARGV.length > 0) {
+    let args = ARGV[0]
+    argList = args.split("|")
+}
+
+// Go through all arguments and convert any true/false strings to boolean true/false values,
+// though it could also be used to handle/sanitise other arguments if need
+for (let i = 0; i  <= (argList.length - 1); i++) {
+    if (argList[i] == "true") { argList[i] = true };
+    if (argList[i] == "false") { argList[i] = false };
+}
+
+let posX
+let posY
+let first = true
+let itemClicked = false
+let errorVal = "errorVal"
+
+// Send Gtk.main_quit() when the menu is deactivated or an item is clicked
+function closeMenu() { Gtk.main_quit() }
+
+// Print a JSON object to stdout with values to be used by the menu-engine. Also identify
+// that an item has been clicked. While this is also called by the deactivate, it is called
+// after the itemClicked check.
+function done(menuName, index, menuPath, errorVal) {
+    print("{\"x\":\"" + posX + "\", \"y\":\"" +posY + "\", \"menuname\":\"" + menuName + "\", \"index\":\"" + index + "\", \"menupath\":\"" + menuPath + "\", \"errorvalue\":\"" + errorVal + "\"}\n");
+    itemClicked = true;
+}
+
+// Iterate through all non-changemenu/cascade items and get the maximum length of the label
+// and accelerator for each separate menu to be used when combining the items for the menu
+// item labels.
+let maxLabel = new Array();
+let maxAccel = new Array();
+for (let i = 0; i  <= (argList.length - 1); i = i + 7) {
+    let mVal = new Array();
+    
+    for (let subi = 0; subi <= 6; subi++) {
+        mVal[subi] = argList[subi + i];
+    }
+    
+    if (mVal[0] != "changemenu" || mVal[0] != "cascade") {
+        
+        if (maxLabel[mVal[0]] == undefined) {
+            maxLabel[mVal[0]] = mVal[3].length;
+            
+        } else {
+            if (mVal[3].length > maxLabel[mVal[0]]) {
+                maxLabel[mVal[0]] = mVal[3].length;
+            }
+        }
+        
+        if (maxAccel[mVal[0]] == undefined) {
+            maxAccel[mVal[0]] = mVal[4].length;
+        } else {
+            if (mVal[4].length > maxAccel[mVal[0]]) {
+                maxAccel[mVal[0]] = mVal[4].length;
+            }
+        }
+    }
+}
+
+// Use the maxLabel/maxAccel when necessary to combine label and accelerator into the one
+// label text, giving the appearance of a right-aligned accerator. This requires that the
+// font in use is a monospace font.
+// This is done as trying to add accelerators in Gtk is more complicated than just giving
+// a label to be used in the accelerator location.
+function makeLabel(curMenuName, lblText, lblAccel) {
+    let labelVal = "";
+    if (lblAccel == "" || lblAccel == undefined) {
+        labelVal = lblText + "   ";
+    } else {
+        let spacesCount = maxLabel[curMenuName] + 4 + maxAccel[curMenuName];
+        spacesCount = spacesCount - lblText.length - lblAccel.length;
+        let menuSpaces = " ".repeat(spacesCount);
+        labelVal = lblText + menuSpaces + lblAccel;
+    }
+
+    return labelVal;
+}
+
+let menu = new Array();
+let mItem = new Array();
+let preMenu = "";
+let curMenu = "";
+let baseMenu = "";
+let baseMenuName = ""
+
+// The assumed values for most iterations are:
+// mVal[0] = Table Name
+// mVal[1] = Table Index
+// mVal[2] = Item Type
+// mVal[3] = Item Label
+// mVal[4] = Item Accelerator/Shortcut
+// mVal[5] = Item State (Check/Unchecked, etc)
+// mVal[6] = Item Disable (True/False)
+for (let i = 0; i  <= (argList.length - 1); i = i + 7) {
+    let mVal = new Array();
+    
+    for (let subi = 0; subi <= 6; subi++) {
+        mVal[subi] = argList[subi + i];
+    }
+    
+    // Set the index value for the menu item arrays so that it's 0 based
+    let mIndex = mVal[1] - 1
+    
+    if (first) {
+        posX = mVal[0];
+        posY = mVal[1];
+        if (mItem[mVal[2]] == undefined) {
+            mItem[mVal[2]] = {};
+        };
+        if (menu[mVal[2]] == undefined) {
+            menu[mVal[2]] = new Gtk.Menu();
+        }
+        baseMenuName = mVal[2];
+        baseMenu = menu[mVal[2]];
+        curMenu = mVal[2];
+        preMenu = mVal[2];
+        first = false;
+        
+        continue
+    }
+    
+    if (mVal[0] == "changemenu") {
+        let changeCount = 0;
+        let menuLength = 0;
+        // Check how many empty values are in the list and increase the $changeCount variable to
+        // subtract that value from the size of the array of values (currently 7), giving the
+        // total number of values that have actually been passed, which is how many times we'll
+        // increment through to set our menu values.
+        for (let subi = 1; subi < mVal.length; subi++) {
+            if (mVal[subi] == "") { changeCount++ };
+        }
+        menuLength = mVal.length - changeCount
+        // We're going to assume that the right-most value that isn't "" of the foreach variables
+        // when doing a menu change is the highest level of menu and that there's been no gaps of
+        // "" values (which there shouldn't be).
+        for (let subi = 1; subi < menuLength; subi++) {
+            if (mItem[mVal[subi]] == undefined) {
+                mItem[mVal[subi]] = {};
+            }
+            if (menu[mVal[subi]] == undefined) {
+                menu[mVal[subi]] = new Gtk.Menu();
+            }
+        }
+        preMenu = mVal[menuLength - 2]
+        curMenu = mVal[menuLength - 1]
+
+        continue
+    }
+    
+    if (mVal[0] == "cascade") {
+        // The menu index is from mVal[2] not mVal[1] for cascade menu items
+        mIndex = mVal[2] - 1
+        // Reverse the curMenu and preMenu here so that the menu so that it attaches in the
+        // correct order
+        mItem[preMenu][mIndex] = new Gtk.MenuItem ({
+            label: makeLabel(curMenu, mVal[1]),
+            visible: true,
+            sensitive: !mVal[6],
+            submenu: menu[curMenu]
+        });
+        menu[preMenu].append(mItem[preMenu][mIndex]);
+        
+        continue
+    }
+    
+    if (mVal[2] == "separator") {
+        mItem[curMenu][mIndex] = new Gtk.SeparatorMenuItem();
+        menu[curMenu].append(mItem[curMenu][mIndex]);
+        
+        continue
+    }
+    
+    // For each of the regularly clickable menu items (not cascades or separators), we connect
+    // to the button-release-event signal, calling the done command.
+    
+    if (mVal[2] == "command") {
+        mItem[curMenu][mIndex] = new Gtk.MenuItem ({
+            label: makeLabel(curMenu, mVal[3], mVal[4]),
+            visible: true,
+            sensitive: !mVal[6]
+        });
+        mItem[curMenu][mIndex].connect("button_release_event", () => 
+            done(mVal[0], mVal[1], curMenu, errorVal)
+        );
+        menu[curMenu].append(mItem[curMenu][mIndex]);
+        
+        continue
+    }
+    
+    if (mVal[2] == "checkbutton") {
+        mItem[curMenu][mIndex] = new Gtk.CheckMenuItem({
+            label: makeLabel(curMenu, mVal[3], mVal[4]),
+            visible: true,
+            active: mVal[5],
+            sensitive: !mVal[6]
+        });
+        mItem[curMenu][mIndex].connect("button_release_event", () => 
+            done(mVal[0], mVal[1], curMenu, errorVal)
+        );
+        menu[curMenu].append(mItem[curMenu][mIndex]);
+        
+        continue
+    }
+    
+    if (mVal[2] == "radiobutton") {
+        mItem[curMenu][mIndex] = new Gtk.CheckMenuItem({
+            draw_as_radio: true,
+            label: makeLabel(curMenu, mVal[3], mVal[4]),
+            visible: true,
+            active: mVal[5],
+            sensitive: !mVal[6]
+        });
+        mItem[curMenu][mIndex].connect("button_release_event", () => 
+            done(mVal[0], mVal[1], curMenu, errorVal)
+        );
+        menu[curMenu].append(mItem[curMenu][mIndex]);
+        
+        continue
+    }
+    
+    if (mVal[2] == "ab-button") {
+        let abActive = false;
+        let abInconsistent = false;
+        if (mVal[5] == "a") { abInconsistent = true }
+        if (mVal[5] == "b") { abActive = true }
+        mItem[curMenu][mIndex] = new Gtk.CheckMenuItem({
+            label: makeLabel(curMenu, mVal[3], mVal[4]),
+            visible: true,
+            active: abActive,
+            inconsistent: abInconsistent,
+            sensitive: !mVal[6]
+        });
+        mItem[curMenu][mIndex].connect("button_release_event", () => 
+            done(mVal[0], mVal[1], curMenu, errorVal)
+        );
+        menu[curMenu].append(mItem[curMenu][mIndex]);
+        
+        continue
+    }
+}
+
+function show_menu() {
+    // Use a Gtk.CssProvider to load CSS information and apply that to all items in the menu.
+    // The monospace font to be used should be set here, adjusting style as desired.
+    let cssProv = new Gtk.CssProvider();
+    cssProv.load_from_data(" * { font-family: Source Code Pro; font-size: 9pt; font-weight: 500; }")
+    Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), cssProv, 800);
+    
+    // Show all menu items and launch the popup.
+    baseMenu.show_all();
+    baseMenu.popup(null, null, null, null, 0, Gtk.get_current_event_time());
+    // Start the main application loop.
+    Gtk.main();
+};
+
+// Connect to the 'deactivate' signal and if no item has been clicked, pass the CANCEL value
+// back so that the menu-engine knows nothing has been clicked.
+baseMenu.connect("deactivate", function() {
+    if (itemClicked == false) {
+        done(baseMenuName, CANCEL, baseMenuName, errorVal);
+    }
+    closeMenu();
+});
+
+// After everything that's not inside a function has been built, cal the show_menu function
+// to show the menu.
+show_menu();

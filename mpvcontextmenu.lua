@@ -14,6 +14,9 @@
  * tk
  *
  * 2017-08-04 - Version 0.1 - Separation of menu building from definitions.
+ * 2017-08-07 - Version 0.1 - Added second mp.register_script_message and changed original
+ *                            to allow the use of different menu types by using the related
+                              script-message name.
  *
  ***************************************************************
 --]]
@@ -783,7 +786,7 @@ mp.register_event("file-loaded", function()
         },        
     }
     
-    -- This check ensures that all tables of data without SEP in them are 6 items long.
+    -- This check ensures that all tables of data without SEP in them are 6 or 7 items long.
     for key, value in pairs(menuList) do
         for i = 1, #value do
             if (value[i][1] ~= SEP) then
@@ -797,6 +800,10 @@ end)
 
 local menuEngine = require 'menu-engine'
 
-mp.register_script_message("mpv_context_menu", function()
+mp.register_script_message("mpv_context_menu_tk", function()
     menuEngine.createMenu(menuList, "context_menu", -1, -1, "tk")
+end)
+
+mp.register_script_message("mpv_context_menu_gtk", function()
+    menuEngine.createMenu(menuList, "context_menu", -1, -1, "gtk")
 end)

@@ -1,5 +1,5 @@
 --[[ *************************************************************
- * Context menu engine for mpv using Tcl/Tk.
+ * Context menu engine for mpv.
  * Originally by Avi Halachmi (:avih) https://github.com/avih
  * Extended by Thomas Carmichael (carmanught) https://github.com/carmanaught
  *
@@ -9,12 +9,7 @@
  * - Reasonably well behaved/integrated considering it's an external application.
  * - Configurable options for some values (changes visually in menu too)
  *
- * Setup:
- * - Make sure Tcl/Tk is installed and `wish` is accessible and works.
- *   - Alternatively, configure `interpreter` below to `tclsh`, which may work smoother.
- *   - For windows, download a zip from http://www.tcl3d.org/html/appTclkits.html
- *     extract and then rename to wish.exe and put it at the path or at the mpv.exe dir.
- *     - Or, tclsh/wish from git/msys2(mingw) works too - set `interpreter` below.
+ * Requirements:
  * - Check https://github.com/carmanaught/mpvcontextmenu for further setup instructions
  *
  * 2017-02-02 - Version 0.1 - Initial version (avih)
@@ -27,6 +22,7 @@
  *                            add basic menu that will work when nothing is playing.
  * 2017-08-01 - Version 0.6 - Add back the menu rebuild functionality.
  * 2017-08-04 - Version 0.7 - Separation of menu building from definitions.
+ * 2017-08-07 - Version 0.8 - Updated to better support an additional menu builder
  *
  ***************************************************************
 --]]
@@ -43,6 +39,12 @@ local menuscript = {}
 
 interpreter["tk"] = "wish";  -- tclsh/wish/full-path
 menuscript["tk"] = mp.find_config_file("scripts/menu-builder-tk.tcl")
+
+-- The js file is provided without an extension so that mpv doesn't try to load it
+-- (allowing for mpv with MuJS support).
+interpreter["gtk"] = "gjs";  -- lua/full-path
+menuscript["gtk"] = mp.find_config_file("scripts/menu-builder-gtk-js")
+
 
 -- Set some constant values. These should match what's used with the menu definitions.
 local SEP = "separator"
@@ -127,10 +129,11 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
     end
     
     -- Add a cascade menu (the logic for attaching is done in the Tcl script)
-    local function addCascade(label, state)
+    local function addCascade(label, state, index)
         args[#args+1] = CASCADE
         args[#args+1] = (argType(label) ~= emptyStr) and argType(label) or ""
-        for iter = 1, 4 do
+        args[#args+1] = index
+        for iter = 1, 3 do
             args[#args+1] = ""
         end
         args[#args+1] = (argType(state) ~= emptyStr) and argType(state) or ""
@@ -157,7 +160,7 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
                     -- Recurse in and build again
                     buildMenu(menuNames[mLvl+1], (mLvl + 1))
                     -- Add the cascade
-                    addCascade(curMenu[mLvl][i][2], curMenu[mLvl][i][6])
+                    addCascade(curMenu[mLvl][i][2], curMenu[mLvl][i][6], i)
                     -- Remove the current table and menuname as we're done with that menu
                     table.remove(curMenu, (mLvl + 1))
                     table.remove(menuNames, (mLvl + 1))
@@ -192,20 +195,26 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
         argList = argList .. "|" .. args[i]
     end
     
+    -- We use the chosen menu builder with the interpreter and menuscript tables as the key
+    -- to define which script we're going to call. The builder should be written to handle
+    -- the information passed to it and provide output back to us in the format we want.
     local cmdArgs = {interpreter[menuBuilder], menuscript[menuBuilder], argList}
     
+    -- retVal gets the return value from the subprocess
     local retVal = utils.subprocess({
         args = cmdArgs,
         cancellable = true
     })
     
+    -- Show an error and stop executing if the subprocess has an error
     if (retVal.status ~= 0) then
         mp.osd_message("Possible error in mpvcontextmenu.tcl")
         return
     end
     
     info("ret: " .. retVal.stdout)
-    local response = utils.parse_json(retVal.stdout)
+    -- Parse the return value as JSON and assign the JSON values.
+    local response = utils.parse_json(retVal.stdout, true)
     response.x = tonumber(response.x)
     response.y = tonumber(response.y)
     response.menuname = tostring(response.menuname)
@@ -224,58 +233,62 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
         return
     end
     
-    -- Run the command
+    -- Run the command accessed by the menu name and menu item index return values
     if (type(menuItem[4]) == "string") then
         mp.command(menuItem[4])
     else
         menuItem[4]()
     end
     
-    -- Re'post' the menu if there's a seventh menu item and it's true.
-    if (menuItem[7]) then
-        if (menuItem[7] ~= "boolean") then
-            rebuildMenu = (menuItem[7] == true) and true or false
-        end
-        
-        if (rebuildMenu == true) then
-            -- Figure out the menu indexes based on the path and send as args to re'post' the menu
-            menuPaths = ""
-            menuIndexes = ""
-            local pathList = {}
-            local idx = 1
-            for path in string.gmatch(response.menupath, "[^%.]+") do
-                pathList[idx] = path
-                idx = idx + 1
+    -- Currently only the 'tk' menu supports a rebuild or re'post' to show the menu re-cascaded to
+    -- the same menu it was on when it was clicked.
+    if (menuBuilder == "tk") then
+        -- Re'post' the menu if there's a seventh menu item and it's true. Only available for tk menu
+        -- at the moment.
+        if (menuItem[7]) then
+            if (menuItem[7] ~= "boolean") then
+                rebuildMenu = (menuItem[7] == true) and true or false
             end
             
-            idx = 1
-            -- Iterate through the menus and build the index values
-            for i = 1, (#pathList - 1) do
-                for pathInd = 1, i do
-                    menuPaths = menuPaths .. "." .. pathList[pathInd]
+            if (rebuildMenu == true) then
+                -- Figure out the menu indexes based on the path and send as args to re'post' the menu
+                menuPaths = ""
+                menuIndexes = ""
+                local pathList = {}
+                local idx = 1
+                for path in string.gmatch(response.menupath, "[^%.]+") do
+                    pathList[idx] = path
+                    idx = idx + 1
                 end
-                if not (i == (#pathList - 1)) then
-                    menuPaths = menuPaths .. "?"
-                end
-                menuFind = menuList[pathList[i]]
-                for subi = 1, (#menuFind) do
-                    if (menuFind[subi][1] == CASCADE) then
-                        if (menuFind[subi][3] == pathList[i+1]) then
-                            -- The indexes for using the postcascade in Tcl are 0-based
-                            menuIndexes = menuIndexes .. (subi - 1)
-                            if not (i == (#pathList - 1)) then
-                                menuIndexes = menuIndexes .. "?"
+                
+                -- Iterate through the menus and build the index values
+                for i = 1, (#pathList - 1) do
+                    for pathInd = 1, i do
+                        menuPaths = menuPaths .. "." .. pathList[pathInd]
+                    end
+                    if not (i == (#pathList - 1)) then
+                        menuPaths = menuPaths .. "?"
+                    end
+                    menuFind = menuList[pathList[i]]
+                    for subi = 1, (#menuFind) do
+                        if (menuFind[subi][1] == CASCADE) then
+                            if (menuFind[subi][3] == pathList[i+1]) then
+                                -- The indexes for using the postcascade in Tcl are 0-based
+                                menuIndexes = menuIndexes .. (subi - 1)
+                                if not (i == (#pathList - 1)) then
+                                    menuIndexes = menuIndexes .. "?"
+                                end
                             end
                         end
                     end
                 end
+                
+                -- Break direct recursion with async, stack overflow can come quick.
+                -- Also allow to un-congest the events queue.
+                mp.add_timeout(0, function() doMenu(menuList, "context_menu", x, y, menuPaths, menuIndexes) end)
+            else
+                mpdebug("There's a problem with the menu rebuild value")
             end
-            
-            -- Break direct recursion with async, stack overflow can come quick.
-            -- Also allow to un-congest the events queue.
-            mp.add_timeout(0, function() doMenu(menuList, "context_menu", x, y, menuPaths, menuIndexes) end)
-        else
-            mpdebug("There's a problem with the menu rebuild value")
         end
     end
 end

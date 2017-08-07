@@ -3,8 +3,8 @@
 # Originally by Avi Halachmi (:avih) https://github.com/avih
 # Extended by Thomas Carmichael (carmanught) https://github.com/carmanaught
 #
-# Developed for and used in conjunction with mpvcontextmenu.lua - context-menu for mpv.
-# See mpvcontextmenu.lua for more info.
+# Developed for and used in conjunction with menu-engine.lua - context-menu for mpv.
+# See menu-engine.lua for more info.
 #
 # 2017-02-02 - Version 0.1 - Initial version (avih)
 # 2017-07-19 - Version 0.2 - Extensive rewrite (carmanught)
@@ -31,28 +31,34 @@ if { $::argc < 1 } {
 }
 
 # Construct the menu from argv:
-# - The first set of values contains the absolute x, y menu position, or
-# - under the mouse if -1, -1, as well as the base menu name.
-# - The rest of the pairs are display-string, return-value-on-click.
-#   If the return value is empty then the display item is disabled, but if the
-#   display is "-" (and empty rv) then a separator is added instead of an item.
-# - For now, return-value is expected to be a number, and -1 is reserved for cancel.
-#
-# On item-click/menu-dismissed, we print a json object to stdout with the
-# menu name and and index.
+# - argv is one large block of values separated by the pipe ("|") character. The purpose
+#   for this is due to the limitations of mpv's mp.utils.subprocess only accepting 256
+#   arguments.
+# - The first set of values contains the absolute x, y menu position, or under the
+#   mouse if -1, -1, as well as the base menu name. Two question mark ("?") separated
+#   values may also be provided to indicate a menu rebuild opening specific (sub)menus
+# - The rest of the sets are detailed below (mVal items). The return-value for menu items
+#   should be a number (the index of the item on the menu), and -1 is reserved for cancel.
+
 set RESP_CANCEL -1
 
+# Checkbutton/Radiobutton text values here to use in place of Tk checkbutton/radiobutton
+# since the styling doesn't seem to show for the tk_popup, except when checked. It's
+# important that a monospace font is used for the menu items to appear correctly.
 set boxCheck "\[X\] "
 set boxUncheck "\[ \] "
 set radioSelect "(X) "
 set radioEmpty "( ) "
 set boxA "\[A\] "
 set boxB "\[B\] "
+# An empty prefix label that is spaces that count to the the same number of characters as
+# the button labels
 set emptyPre "    "
+# This is to put a bit of a spacer between label and accelerator
 set accelSpacer "   "
-set labelPre ""
 set menuWidth 36
-set baseMenuName "context_menu"
+# Various other global variables
+set labelPre ""
 set first 1
 set postMenu "false"
 set postMenus ""
@@ -93,7 +99,7 @@ proc makeLabel {curTable accelLabel} {
 # mVal(4) = Item Label
 # mVal(5) = Item Accelerator/Shortcut
 # mVal(6) = Item State (Check/Unchecked, etc)
-# mVal(7) = Item Disable (True False)
+# mVal(7) = Item Disable (True/False)
 foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
     if {$first} {
         set pos_x $mVal(1)
@@ -171,8 +177,8 @@ foreach {mVal(1) mVal(2) mVal(3) mVal(4) mVal(5) mVal(6) mVal(7)} $argList {
         continue
     }
     
-    # For checkbutton/radiobutton I'll just add command items for now, until I can get the
-    # theming to work right and show the buttons based on a specified theme.
+    # The checkbutton/radiobutton items are just 'add command' items with a label prefix to
+    # give a textual appearance of check/radio items showing their status.
     
     if {$mVal(3) == "checkbutton"} {
         if {$mVal(6) == "true"} {
@@ -216,8 +222,10 @@ if {$pos_x == -1 && $pos_y == -1} {
     set pos_y [winfo pointery .]
 }
 
+# On item-click/menu-dismissed, we print a json object to stdout with values to be
+# used in the menu engine
 proc done {menuName index menuPath errorValue} {
-    puts -nonewline "{\"x\":\"$::pos_x\", \"y\":\"$::pos_y\", \"menuname\":\"$menuName\", \"index\":\"$index\", \"menupath\":\"$menuPath\", \"errorvalue\":\"$errorValue\"}"
+    puts "{\"x\":\"$::pos_x\", \"y\":\"$::pos_y\", \"menuname\":\"$menuName\", \"index\":\"$index\", \"menupath\":\"$menuPath\", \"errorvalue\":\"$errorValue\"}"
     exit
 }
 
@@ -247,8 +255,6 @@ after idle {
         }
     }
 }
-#after idle .context_menu postcascade 2
-#after idle .context_menu.play_menu postcascade 6
 
 # On Windows tk_popup is synchronous and so we exit when it closes, but on Linux
 # it's async and so we need to bind to the <Unmap> event (<Destroyed> or

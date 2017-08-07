@@ -1,8 +1,12 @@
 # Context Menu for mpv
 
-This is a context menu forked and fairly extensively modified from [this one](https://gist.github.com/avih/bee746200b5712220b8bd2f230e535de) (credit to avih). This is an example of what the Tk menu looks like in use (showing the audio Channel Layout sub-menu):
+This is a context menu forked and fairly extensively modified from [this one](https://gist.github.com/avih/bee746200b5712220b8bd2f230e535de) (credit to avih).
 
-<img src="http://i.imgur.com/8xmOqXW.png" width="768">
+[TOC]
+
+This is an example of what the Tk (left) and Gtk+ (right) menus look like in use (showing the audio Channel Layout sub-menu):
+
+<img src="http://i.imgur.com/DjpSTom.png" width="768">
 
 A lot of the code from the original menu has been rewritten. In particular, the Tk menu adds sub-menu's using the Tcl menu cascade command retaining the possibility to rebuild the menu along with sub-menu's through the use of the Tcl 'postcascade command'.
 
@@ -12,17 +16,41 @@ Some of the menu items reference commands that use the functions/bindings in `ze
 
 The menu layout definitions and the menu engine have been separated. Part of this is allow for the use of other menu builders, with the logic and interactions with builders handled by the menu engine script. This has the advantage that the menu engine script doesn't care about the menu definition file and actually allows multiple menu definition files to used if desired, ensuring they are configured correctly (see [Customization](#customization) below).
 
+While some of this may work on Windows or macOS, most of this is only tested on Linux. For macOS, some items may be available via [Homebrew](https://brew.sh/), though I can't provide any guarantees of things working.
+
 ## Requirements
 
-This currently requires **tcl**, **tk** and **zenity** installed to work.
+For the menu's to work, this currently requires the following:
+
+* **tcl**, **tk** for the Tk based menu,
+* **gjs** (and it's dependancies, likely including **gtk3**) for the Gtk+ based menu,
+* **zenity** for the dialogs to open files/folders/URLs.
 
 Place the files (except for `input.conf`) in your `~/.config/mpv/scripts/` or `~/.mpv/scripts/` folder. The `input.conf` is not strictly necessary, but the key-bindings shown in the menu are based on those in the `input.conf` . **Note:** the key-bindings are not automatically detected and have been manually added as text to the menu, so you'll need to change/remove them if they don't match your own.
 
-You will need to install Tcl and Tk (for the Tk menu) and ensure that the interpreter variable in `mpvcontextmenu.lua` is set properly. This can be set to `wish` or `tclsh` (set to `wish` by default) and should either be accessible via the PATH environment variable or the full path should be specified.
+### Tk
 
-Similarly, Zenity needs to be installed and accessible via the PATH or set it up manually in `zenity-dialogs.lua`. If you do not wish to use the zenity dialogs, remove the entries in the menu items referencing them.
+You will need to install Tcl and Tk (for the Tk menu) and ensure that the `interpreter["tk"]` variable in `menu-engine.lua` is set properly. This can be set to `wish` or `tclsh` (set to `wish` by default, though `tclsh` may work smoother) and should either be accessible via the PATH environment variable or the full path should be specified.
 
-The menu uses the Source Code Pro font, which can be [found here](https://github.com/adobe-fonts/source-code-pro) (or check your repositories), however the font can be changed in the `menu-builder-tk.tcl` file. A mono-spaced font must be used for the menu items to appear correctly.
+For Windows, download your preferred Tcl package (check the [Tcl software page](https://www.tcl.tk/software/tcltk/) or perhaps [ActiveTcl](https://www.activestate.com/activetcl) or [Tcl3D](http://www.tcl3d.org/html/appTclkits.html)) and install/extract as needed. Ensure that the relevant wish.exe or tclsh.exe is either in the PATH, the full path has been specified, or put the necessary executable into the the mpv.exe directory. You could also use tclsh/wish from git/msys2 (mingw).
+
+### Gtk+
+
+The Gtk+ menu uses `gjs` for the interpreter and will need that installed along with whatever dependencies that requires. The `interpreter["gtk"]` variable in `menu-engine.lua` should be set properly as needed, depending on whether it's accessible by from the PATH environment variable, etc.
+
+This hasn't been tested on Windows as I'm unsure if there is a workable port/version of gjs for Windows. For macOS, it looks like it's available in Homebrew ([Gjs](http://brewformulas.org/Gjs)), though it doesn't specify dependencies, so you may need [Gtk+](http://brewformulas.org/Gtk+) from there as well.
+
+### Zenity
+
+For the dialogs to work, `zenity` needs to be installed and accessible via the PATH or set it up manually in `zenity-dialogs.lua`. If you do not wish to use the zenity dialogs, remove the entries in the menu items referencing them.
+
+Apparently there is a port of [Zenity for windows](https://github.com/kvaps/zenity-windows), but this has not been tested.  For macOS, apparently this is available via Homebrew ([Zenity](http://brewformulas.org/zenity)).
+
+### Fonts
+
+The menu uses the Source Code Pro font, which can be [found here](https://github.com/adobe-fonts/source-code-pro) (or check your repositories), however the font can be changed in the `menu-builder-tk.tcl` or `menu-builder-gtk-js` files. A mono-spaced font must be used for the menu items to appear correctly.
+
+#### Tk
 
 To get a list of fonts available to specify the correct name for Tcl/Tk, from a terminal run `wish` and from the wish prompt, enter `puts [font families]`.
 
@@ -37,7 +65,17 @@ Set the font to be used in `menu-builder-tk.tcl`, changing the line with `{Sourc
 font create defFont -family {Source Code Pro} -size 9
 ```
 
-Additionally the context menu uses some other mpv scripts via script-binding/script-message. These are currently:
+#### Gtk+
+
+The Gtk+ menu uses CSS to specify the font, so you should be able to use the font name as it appears to most other applications. Change the font near the end of the file in the `show_menu()` function as part of the `Gtk.CssProvider().load_from_file()` text string.
+
+```javascript
+load_from_data(" * { font-family: Source Code Pro; font-size: 9pt; font-weight: 500; }")
+```
+
+### Scripts
+
+Additionally the context menu uses some mpv scripts that other people have written, called via script-binding/script-message. These are currently:
 
 - [subit](https://github.com/wiiaboo/mpv-scripts/blob/master/subit.lua) for the "Find Subtitle (Subit)" item under "Tools"
 - [playlistmanager](https://github.com/donmaiq/Mpv-Playlistmanager) for the "Show" item under "Tools > Playlist"
@@ -47,9 +85,14 @@ These will need to be either downloaded and set-up for these menu items to work 
 
 ## Usage
 
-There is no default binding for the context menu and it needs to be specified via a binding in `input.conf` via `<BINDING> script_message mpv_context_menu` replacing the binding with the desired key-binding. To get this to work with the right-click button of the mouse, for instance, you would use:
+There is no default binding for the context menu and the choice of menu needs to be specified via a binding in `input.conf` via `<BINDING> script_message <MENUTYPE>` replacing the `<BINDING>` with the desired key-binding. The `<MENUTYPE>` options are:
 
-    MOUSE_BTN2 script_message mpv_context_menu
+* `mpv_context_menu_tk` for the Tk menu,
+* `mpv_context_menu_gtk` for the Gtk+ menu.
+
+To get the Tk menu to work with the right-click button of the mouse, for instance, you would use:
+
+    MOUSE_BTN2 script_message mpv_context_menu_tk
 The default bindings for the dialogs in `zenity-dialogs.lua` are:
 
 |                                      Key | Action                                   |
@@ -165,7 +208,7 @@ menuList = {
     },
   
     play_menu = {
-        {COMMAND, "Play/Pause", "Space", "cycle pause", "", false},
+        {COMMAND, "Play/Pause", "Space", "cycle pause", "", false, true},
         {COMMAND, "Stop", "Ctrl+Space", "stop", "", false},
         {SEP},
         {COMMAND, "Previous", "<", "playlist-prev", "", false},
@@ -205,6 +248,8 @@ One of the files included is the `langcodes.lua` which holds two tables filled w
 ## Disclaimer
 
 I have tried to test this on a variety of media files and have attempted to deal with any bugs that have arisen, but I can't guarantee that this is bug-free. There may be use-cases I haven't considered or some functions may throw errors from unexpected values/input.
+
+I also have only tested this on Linux and any information about Windows or macOS is based either on the original authors code comments or some searches I've done. I may look at trying to test other OS's, but can't guarantee anything at the moment.
 
 ## Credits
 
