@@ -23,7 +23,6 @@
 
 local langcodes = require 'langcodes'
 local function mpdebug(x) mp.msg.info(x) end
-local function noop() end
 local propNative = mp.get_property_native
 
 -- Set options
@@ -459,7 +458,7 @@ menuList = {
         {SEP},
         {CASCADE, "Window", "window_menu", "", "", false},
         {SEP},
-        {COMMAND, "Dismiss Menu", "", noop, "", false},
+        {COMMAND, "Dismiss Menu", "", "", "", false},
         {COMMAND, "Quit", "", "quit", "", false},
     },
     
@@ -506,7 +505,7 @@ mp.register_event("file-loaded", function()
             {CASCADE, "Tools", "tools_menu", "", "", false},
             {CASCADE, "Window", "window_menu", "", "", false},
             {SEP},
-            {COMMAND, "Dismiss Menu", "", noop, "", false},
+            {COMMAND, "Dismiss Menu", "", "", "", false},
             {COMMAND, "Quit", "", "quit", "", false},
         },
         

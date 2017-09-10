@@ -9,7 +9,7 @@
  * - Reasonably well behaved/integrated considering it's an external application.
  * - Configurable options for some values (changes visually in menu too)
  *
- * Requirements:
+ * Setup/Requirements:
  * - Check https://github.com/carmanaught/mpvcontextmenu for further setup instructions
  *
  * 2017-02-02 - Version 0.1 - Initial version (avih)
@@ -235,7 +235,7 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
     
     -- Run the command accessed by the menu name and menu item index return values
     if (type(menuItem[4]) == "string") then
-        mp.command(menuItem[4])
+        if not (menuItem[4] == "") then mp.command(menuItem[4]) end
     else
         menuItem[4]()
     end

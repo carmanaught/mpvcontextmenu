@@ -22,7 +22,7 @@ const CANCEL = -1
 Gtk.init(null);
 
 // Get the argument list that has been passed to the script
-let argList = new Array();
+let argList = [];
 if (ARGV.length > 0) {
     let args = ARGV[0]
     argList = args.split("|")
@@ -55,10 +55,10 @@ function done(menuName, index, menuPath, errorVal) {
 // Iterate through all non-changemenu/cascade items and get the maximum length of the label
 // and accelerator for each separate menu to be used when combining the items for the menu
 // item labels.
-let maxLabel = new Array();
-let maxAccel = new Array();
+let maxLabel = [];
+let maxAccel = [];
 for (let i = 0; i  <= (argList.length - 1); i = i + 7) {
-    let mVal = new Array();
+    let mVal = [];
     
     for (let subi = 0; subi <= 6; subi++) {
         mVal[subi] = argList[subi + i];
@@ -104,8 +104,8 @@ function makeLabel(curMenuName, lblText, lblAccel) {
     return labelVal;
 }
 
-let menu = new Array();
-let mItem = new Array();
+let menu = [];
+let mItem = [];
 let preMenu = "";
 let curMenu = "";
 let baseMenu = "";
@@ -120,7 +120,7 @@ let baseMenuName = ""
 // mVal[5] = Item State (Check/Unchecked, etc)
 // mVal[6] = Item Disable (True/False)
 for (let i = 0; i  <= (argList.length - 1); i = i + 7) {
-    let mVal = new Array();
+    let mVal = [];
     
     for (let subi = 0; subi <= 6; subi++) {
         mVal[subi] = argList[subi + i];
