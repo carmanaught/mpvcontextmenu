@@ -16,7 +16,7 @@
  * 2017-08-04 - Version 0.1 - Separation of menu building from definitions.
  * 2017-08-07 - Version 0.1 - Added second mp.register_script_message and changed original
  *                            to allow the use of different menu types by using the related
-                              script-message name.
+ *                            script-message name.
  *
  ***************************************************************
 --]]

@@ -68,8 +68,8 @@ local menuBuilder = ""
 local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
     local mousepos = {}
     mousepos.x, mousepos.y = mp.get_mouse_pos()
-    if (x == -1) then x = tostring(mousepos.x) end
-    if (y == -1) then y = tostring(mousepos.y) end
+    if (x == -1 and menuBuilder ~= "tk") then x = tostring(mousepos.x) end
+    if (y == -1 and menuBuilder ~= "tk") then y = tostring(mousepos.y) end
     menuPaths = (menuPaths ~= nil) and tostring(menuPaths) or ""
     menuIndexes = (menuIndexes ~= nil) and tostring(menuIndexes) or ""
     -- For the first run, we'll send the name of the base menu after the x/y
@@ -190,9 +190,12 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
     -- cause problems
     if (stopCreate == true) then do return end end
     
+    -- Put all the arg values into a pipe-separated list to make it easier to pass to the
+    -- interpreter of choice (due to max arg limit) and replace pipe characters in any
+    -- arguments with a dash, just in case.
     local argList = args[1]
     for i = 2, #args do
-        argList = argList .. "|" .. args[i]
+        argList = argList .. "|" .. string.gsub(args[i], "|", "-")
     end
     
     -- We use the chosen menu builder with the interpreter and menuscript tables as the key
