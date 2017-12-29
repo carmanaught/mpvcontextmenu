@@ -6,6 +6,7 @@ This is a context menu forked and fairly extensively modified from [this one](ht
 
 * [Requirements](#requirements)
   * [Tk](#tk)
+  * [Gtk+](#gtk)
   * [Zenity](#zenity)
   * [Fonts](#fonts)
     * [Tk](#tk-1)
