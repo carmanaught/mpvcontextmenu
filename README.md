@@ -25,15 +25,15 @@ This is an example of what the Tk (left) and Gtk+ (right) menus look like in use
 
 <img src="http://i.imgur.com/DjpSTom.png" width="768">
 
-A lot of the code from the original menu has been rewritten. In particular, the Tk menu adds sub-menu's using the Tcl menu cascade command retaining the possibility to rebuild the menu along with sub-menu's through the use of the Tcl 'postcascade command'.
+A lot of the code from the original menu has been rewritten. In particular, the Tk menu adds sub-menu's using the Tcl menu 'cascade' command, retaining the possibility to rebuild the menu along with sub-menu's through the use of the Tcl 'postcascade' command.
 
-The menu layout is based on by the right-click menu for Bomi, which is what I was using before switching to mpv. If you were a Bomi user be aware that not all the menu items for Bomi are implemented, particularly those around video settings and there is no current plan to implement them at this point.
+The menu layout is based on the right-click menu for Bomi, which is what I was using before switching to mpv. If you were a Bomi user be aware that not all the menu items for Bomi are implemented (particularly those around video settings) and there is no current plan to implement them at this point.
 
 Some of the menu items reference commands that use the functions/bindings in `zenity-dialogs.lua` to show dialogs. These are based on the [KDialog-open-files](https://gist.github.com/ntasos/d1d846abd7d25e4e83a78d22ee067a22) script (credit to ntasos).
 
-The menu layout definitions and the menu engine have been separated. Part of this is allow for the use of other menu builders, with the logic and interactions with builders handled by the menu engine script. This has the advantage that the menu engine script doesn't care about the menu definition file and actually allows multiple menu definition files to used if desired, ensuring they are configured correctly (see [Customization](#customization) below).
+The menu layout definitions and the menu engine have been separated. Part of this is to allow for the use of other menu builders, with the logic and interactions with builders handled by the menu engine script. This has the advantage that the menu engine script doesn't care about the menu definition file and actually allows multiple menu definition files to be used if desired, ensuring they are configured correctly (see [Customization](#customization) below).
 
-While some of this may work on Windows or macOS, most of this is only tested on Linux. For macOS, some items may be available via [Homebrew](https://brew.sh/), though I can't provide any guarantees of things working.
+While some of this may work on Windows or macOS, most of this is only tested on Linux. For macOS, some of the requirements may be available via [Homebrew](https://brew.sh/), though I can't provide any guarantees for things working.
 
 ## Requirements
 
@@ -55,6 +55,8 @@ For Windows, download your preferred Tcl package (check the [Tcl software page](
 
 The Gtk+ menu uses `gjs` for the interpreter and will need that installed along with whatever dependencies that requires. The `interpreter["gtk"]` variable in `menu-engine.lua` should be set properly as needed, depending on whether it's accessible by from the PATH environment variable, etc.
 
+**Note:** The Gtk+ menu may be slightly slower to open than the Tk menu, which might just generally be due to how I have written the code and the manner in which the menu is built.
+
 This hasn't been tested on Windows as I'm unsure if there is a workable port/version of gjs for Windows. For macOS, it looks like it's available in Homebrew ([Gjs](http://brewformulas.org/Gjs)), though it doesn't specify dependencies, so you may need [Gtk+](http://brewformulas.org/Gtk+) from there as well.
 
 ### Zenity
@@ -69,11 +71,11 @@ The menu uses the Source Code Pro font, which can be [found here](https://github
 
 #### Tk
 
-To get a list of fonts available to specify the correct name for Tcl/Tk, from a terminal run `wish` and from the wish prompt, enter `puts [font families]`.
+To change the font for the Tk menu and to ensure that the correct name of the font is specified, run `wish`  from a terminal, then from the wish prompt, enter `puts [font families]`.
 
     user@hostname:~$ wish
     % puts [font families]
-This should output a list of fonts enclosed by curly braces, which can be used to copy the name of the desired font. To exit, type `exit`.
+This should output a list of available fonts enclosed by curly braces, which can be used to copy the name of the desired font. To exit, type `exit`.
 
     % exit
 Set the font to be used in `menu-builder-tk.tcl`, changing the line with `{Source Code Pro}` below in the Tcl file to whichever font is preferred and adjusting size as desired.

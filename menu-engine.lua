@@ -288,7 +288,7 @@ local function doMenu(menuList, menuName, x, y, menuPaths, menuIndexes)
                 
                 -- Break direct recursion with async, stack overflow can come quick.
                 -- Also allow to un-congest the events queue.
-                mp.add_timeout(0, function() doMenu(menuList, "context_menu", x, y, menuPaths, menuIndexes) end)
+                mp.add_timeout(0, function() doMenu(menuList, "context_menu", response.x, response.y, menuPaths, menuIndexes) end)
             else
                 mpdebug("There's a problem with the menu rebuild value")
             end
