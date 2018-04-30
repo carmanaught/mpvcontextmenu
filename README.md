@@ -7,7 +7,7 @@ This is a context menu forked and fairly extensively modified from [this one](ht
 * [Requirements](#requirements)
   * [Tk](#tk)
   * [Gtk+](#gtk)
-  * [Zenity](#zenity)
+  * [Dialogs](#dialogs)
   * [Fonts](#fonts)
     * [Tk](#tk-1)
     * [Gtk+](#gtk-1)
