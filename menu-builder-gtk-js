@@ -11,12 +11,14 @@
 #
 # #############################################################*/
 
-const Gdk = imports.gi.Gdk;
+imports.gi.versions.Gtk = '3.0';
 const Gtk = imports.gi.Gtk;
+imports.gi.versions.Gdk = '3.0';
+const Gdk = imports.gi.Gdk;
 const Gio = imports.gi.Gio;
-const GLib = imports.gi.GLib
+const GLib = imports.gi.GLib;
 
-const CANCEL = -1
+const CANCEL = -1;
 
 // This call is necessary to be sure that GTK3 is avaible and capable of showing some UI
 Gtk.init(null);
@@ -267,16 +269,18 @@ for (let i = 0; i  <= (argList.length - 1); i += 7) {
     }
 }
 
+let cssProv;
+
 function show_menu() {
     // Use a Gtk.CssProvider to load CSS information and apply that to all items in the menu.
     // The monospace font to be used should be set here, adjusting style as desired.
-    let cssProv = new Gtk.CssProvider();
+    cssProv = new Gtk.CssProvider();
     cssProv.load_from_data(" * { font-family: Source Code Pro; font-size: 9pt; font-weight: 500; }")
     Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), cssProv, 800);
     
     // Show all menu items and launch the popup.
     baseMenu.show_all();
-    baseMenu.popup(null, null, null, null, 0, Gtk.get_current_event_time());
+    baseMenu.popup(null, null, null, 0, Gtk.get_current_event_time());
     // Start the main application loop.
     Gtk.main();
 };
@@ -287,9 +291,10 @@ baseMenu.connect("deactivate", function() {
     if (itemClicked == false) {
         done(baseMenuName, CANCEL, baseMenuName, errorVal);
     }
+    Gtk.StyleContext.remove_provider_for_screen(Gdk.Screen.get_default(), cssProv);
     closeMenu();
 });
 
-// After everything that's not inside a function has been built, cal the show_menu function
+// After everything that's not inside a function has been built, call the show_menu function
 // to show the menu.
 show_menu();

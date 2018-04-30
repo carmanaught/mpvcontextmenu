@@ -29,7 +29,7 @@ A lot of the code from the original menu has been rewritten. In particular, the 
 
 The menu layout is based on the right-click menu for Bomi, which is what I was using before switching to mpv. If you were a Bomi user be aware that not all the menu items for Bomi are implemented (particularly those around video settings) and there is no current plan to implement them at this point.
 
-Some of the menu items reference commands that use the functions/bindings in `zenity-dialogs.lua` to show dialogs. These are based on the [KDialog-open-files](https://gist.github.com/ntasos/d1d846abd7d25e4e83a78d22ee067a22) script (credit to ntasos).
+Some of the menu items reference commands that use the functions/bindings in `gui-dialogs.lua` to show dialogs. These are based on the [KDialog-open-files](https://gist.github.com/ntasos/d1d846abd7d25e4e83a78d22ee067a22) script (credit to ntasos) and include both `zenity` and `kdialog` options.
 
 The menu layout definitions and the menu engine have been separated. Part of this is to allow for the use of other menu builders, with the logic and interactions with builders handled by the menu engine script. This has the advantage that the menu engine script doesn't care about the menu definition file and actually allows multiple menu definition files to be used if desired, ensuring they are configured correctly (see [Customization](#customization) below).
 
@@ -41,7 +41,7 @@ For the menu's to work, this currently requires the following:
 
 * **tcl**, **tk** for the Tk based menu,
 * **gjs** (and it's dependancies, likely including **gtk3**) for the Gtk+ based menu,
-* **zenity** for the dialogs to open files/folders/URLs.
+* **kdialog** or **zenity** for the dialogs to open files/folders/URLs.
 
 Place the files (except for `input.conf`) in your `~/.config/mpv/scripts/` or `~/.mpv/scripts/` folder. The `input.conf` is not strictly necessary, but the key-bindings shown in the menu are based on those in the `input.conf` . **Note:** the key-bindings are not automatically detected and have been manually added as text to the menu, so you'll need to change/remove them if they don't match your own.
 
@@ -59,11 +59,13 @@ The Gtk+ menu uses `gjs` for the interpreter and will need that installed along 
 
 This hasn't been tested on Windows as I'm unsure if there is a workable port/version of gjs for Windows. For macOS, it looks like it's available in Homebrew ([Gjs](http://brewformulas.org/Gjs)), though it doesn't specify dependencies, so you may need [Gtk+](http://brewformulas.org/Gtk+) from there as well.
 
-### Zenity
+### Dialogs
 
-For the dialogs to work, `zenity` needs to be installed and accessible via the PATH or set it up manually in `zenity-dialogs.lua`. If you do not wish to use the zenity dialogs, remove the entries in the menu items referencing them.
+For the dialogs to work, either `kdialog` or `zenity` need to be installed and accessible via the PATH or the path set up manually in `gui-dialogs.lua`. By default, neither the `kdialog` or `zenity` dialogs are enabled and either the script file should be modified or a `gui-dialogs.conf` file should be created (read configuration section below regarding the right directory for this).
 
-Apparently there is a port of [Zenity for windows](https://github.com/kvaps/zenity-windows), but this has not been tested.  For macOS, apparently this is available via Homebrew ([Zenity](http://brewformulas.org/zenity)).
+If you do not wish to use any of the included dialogs you can also remove the entries in the menu items referencing them.
+
+For `zenity`, apparently there is a port of [Zenity for windows](https://github.com/kvaps/zenity-windows), but this has not been tested.  For macOS, apparently this is available via Homebrew ([Zenity](http://brewformulas.org/zenity)). As far as I'm aware, `kdialog` is not readily available on windows or macOS.
 
 ### Fonts
 
@@ -73,8 +75,10 @@ The menu uses the Source Code Pro font, which can be [found here](https://github
 
 To change the font for the Tk menu and to ensure that the correct name of the font is specified, run `wish`  from a terminal, then from the wish prompt, enter `puts [font families]`.
 
-    user@hostname:~$ wish
-    % puts [font families]
+```shell
+user@hostname:~$ wish
+% puts [font families]
+```
 This should output a list of available fonts enclosed by curly braces, which can be used to copy the name of the desired font. To exit, type `exit`.
 
     % exit
@@ -112,7 +116,7 @@ There is no default binding for the context menu and the choice of menu needs to
 To get the Tk menu to work with the right-click button of the mouse, for instance, you would use:
 
     MOUSE_BTN2 script_message mpv_context_menu_tk
-The default bindings for the dialogs in `zenity-dialogs.lua` are:
+The default bindings for the dialogs in `gui-dialogs.lua` are:
 
 |                                      Key | Action                                   |
 | ---------------------------------------: | :--------------------------------------- |
@@ -124,18 +128,22 @@ The default bindings for the dialogs in `zenity-dialogs.lua` are:
 
 ## Configuration
 
-Both `zenity-dialogs.lua` and `mpvcontextmenu.lua` will read options stored in respective config files in a `lua-settings` directory in your mpv config directory (mentioned above). The files should be named the same as the Lua files but with `.conf` instead of `.lua` on the end. Check the near the top of each of the files to see which settings can be changed.
+Both `gui-dialogs.lua` and `mpvcontextmenu.lua` will read options stored in respective config files (in a `lua-settings` directory for mpv versions below 0.29.X and a `script-opts` directory for mpv versions from 0.29.X on) in your mpv config directory (mentioned above). The files should be named the same as the Lua files but with `.conf` instead of `.lua` on the end. Check the near the top of each of the files to see which settings can be changed.
 
-For instance, if you want to change the key-bindings for the dialogs, you could create `zenity-dialogs.conf` and specify the shortcuts as such:
+For instance, if you want to specify the use of `zenity` dialogs and change the key-bindings for the dialogs, you could create `gui-dialogs.conf` and specify the `dialogPref` and the shortcuts as such:
 
-    # Open files and open folder
-    addFiles=Ctrl+f
-    addFolder=Ctrl+g
-Keep in mind that the shorcut style should match the `input.conf` format that mpv uses (allowing for case sensitivity) and that there should be no space between the `=` and the value after the `=` should not use quote marks.
+```ini
+# Dialog preference
+dialogPref=zenity 
+# Open files and open folder
+addFiles=Ctrl+f
+addFolder=Ctrl+g
+```
+Keep in mind that the shortcut style should match the `input.conf` format that mpv uses (allowing for case sensitivity) and that there should be no space between the `=` and the value after the `=` should not use quote marks.
 
 For the context menu itself, the options listed in the top of the file specify the unit for the values used. It's important to specify the options in a conf file keeping the same unit values in mind (e.g. Audio Sync is set up for milliseconds but Seek is set up for seconds). An example for `mpvcontextmenu.conf` might be:
 
-```
+```ini
 # Play > Seek - Seconds
 seekSmall=10
 seekMedium=60

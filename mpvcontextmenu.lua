@@ -213,7 +213,7 @@ local function audTrackMenu()
     local audTrackMenuVal, audTrackCount = {}, trackCount("audio")
     
     audTrackMenuVal = {
-         {COMMAND, "Open File", "", "script-binding add_audio_zenity", "", false},
+         {COMMAND, "Open File", "", "script-binding add_audio_dialog", "", false},
          {COMMAND, "Reload File", "", "audio-reload", "", false},
          {COMMAND, "Remove", "", "audio-remove", "", false},
          {SEP},
@@ -254,7 +254,7 @@ local function subTrackMenu()
     local subTrackMenuVal, subTrackCount = {}, trackCount("sub")
     
     subTrackMenuVal = {
-        {COMMAND, "Open File", "(Shift+F)", "script-binding add_subtitle_zenity", "", false},
+        {COMMAND, "Open File", "(Shift+F)", "script-binding add_subtitle_dialog", "", false},
         {COMMAND, "Reload File", "", "sub-reload", "", false},
         {COMMAND, "Clear File", "", "sub-remove", "", false},
         {SEP},
@@ -463,9 +463,9 @@ menuList = {
     },
     
     open_menu = {
-        {COMMAND, "File", "Ctrl+F", "script-binding add_files_zenity", "", false},
-        {COMMAND, "Folder", "Ctrl+G", "script-binding add_folder_zenity", "", false},
-        {COMMAND, "URL", "", "script-binding open_url_zenity", "", false},
+        {COMMAND, "File", "Ctrl+F", "script-binding add_files_dialog", "", false},
+        {COMMAND, "Folder", "Ctrl+G", "script-binding add_folder_dialog", "", false},
+        {COMMAND, "URL", "", "script-binding open_url_dialog", "", false},
     },
     
     window_menu = {
@@ -510,9 +510,9 @@ mp.register_event("file-loaded", function()
         },
         
         open_menu = {
-            {COMMAND, "File", "Ctrl+F", "script-binding add_files_zenity", "", false},
-            {COMMAND, "Folder", "Ctrl+G", "script-binding add_folder_zenity", "", false},
-            {COMMAND, "URL", "", "script-binding open_url_zenity", "", false},
+            {COMMAND, "File", "Ctrl+F", "script-binding add_files_dialog", "", false},
+            {COMMAND, "Folder", "Ctrl+G", "script-binding add_folder_dialog", "", false},
+            {COMMAND, "URL", "", "script-binding open_url_dialog", "", false},
         },
         
         play_menu = {
@@ -750,13 +750,13 @@ mp.register_event("file-loaded", function()
         playlist_menu = {
             {COMMAND, "Show", "L", "script-binding showplaylist", "", false},
             {SEP},
-            {COMMAND, "Open", "", "script-binding open_playlist_zenity", "", false},
+            {COMMAND, "Open", "", "script-binding open_playlist_dialog", "", false},
             {COMMAND, "Save", "", "script-binding saveplaylist", "", false},
             {COMMAND, "Regenerate", "", "script-binding loadfiles", "", false},
             {COMMAND, "Clear", "Shift+L", "playlist-clear", "", false},
             {SEP},
-            {COMMAND, "Append File", "", "script-binding append_files_zenity", "", false},
-            {COMMAND, "Append URL", "", "script_binding append_url_zenity", "", false},
+            {COMMAND, "Append File", "", "script-binding append_files_dialog", "", false},
+            {COMMAND, "Append URL", "", "script_binding append_url_dialog", "", false},
             {COMMAND, "Remove", "", "playlist-remove current", "", false, true},
             {SEP},
             {COMMAND, "Move Up", "", function() movePlaylist("up") end, "", function() return (propNative("playlist-count") < 2) and true or false end, true},
