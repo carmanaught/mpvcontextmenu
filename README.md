@@ -1,3 +1,5 @@
+DEPRECATED: This repository has been deprecated and moved to https://gitlab.com/carmanaught/mpvcontextmenu/
+
 # Context Menu for mpv
 
 This is a context menu forked and fairly extensively modified from [this one](https://gist.github.com/avih/bee746200b5712220b8bd2f230e535de) (credit to avih).
